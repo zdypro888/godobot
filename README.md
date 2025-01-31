@@ -1,0 +1,2 @@
+# godobot
+Debot Magician SDK
