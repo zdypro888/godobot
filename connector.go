@@ -3,17 +3,53 @@ package godobot
 import (
 	"bufio"
 	"context"
-	"errors"
-	"fmt"
 	"io"
 	"net"
-	"regexp"
-	"strconv"
 	"strings"
-	"time"
 
 	"go.bug.st/serial"
 )
+
+const (
+	SyncByte       = 0xAA
+	MaxPayloadSize = SyncByte - 1 // 确保payload不大于SYNC_BYTE
+)
+
+// Packet 负载结构
+type Packet struct {
+	Id     uint8 // 命令ID
+	Ctrl   uint8 // 控制字节
+	Params []byte
+}
+
+// Message 用于协议通信的消息结构
+type Message struct {
+	Id       ProtocolId // 原 id
+	RW       uint8      // 原 rw
+	IsQueued uint8      // 原 isQueued
+	Params   []byte
+}
+
+func (message *Message) ToPacket() *Packet {
+	packet := &Packet{}
+	packet.Id = uint8(message.Id)
+	packet.Ctrl = 0
+	packet.Ctrl |= message.RW & 0x01
+	packet.Ctrl |= (message.IsQueued << 1) & 0x02
+	packet.Params = make([]byte, len(message.Params))
+	copy(packet.Params, message.Params)
+	return packet
+}
+
+func (packet *Packet) ToMessage() *Message {
+	message := &Message{}
+	message.Id = ProtocolId(packet.Id)
+	message.RW = packet.Ctrl & 0x01
+	message.IsQueued = (packet.Ctrl >> 1) & 0x01
+	message.Params = make([]byte, len(packet.Params))
+	copy(message.Params, packet.Params)
+	return message
+}
 
 type Connector struct {
 	Running         bool
@@ -47,64 +83,88 @@ func (connector *Connector) Open(ctx context.Context, name string) error {
 		}
 		connector.port = serialPort
 	}
-	if connector.FirmwareType != "" || connector.FirmwareType != "DobotWifi" {
-		if _, err := connector.port.Write([]byte("\nM10\nM10\nM10\nM10\nM10\nM13\nM13\nM13\nM13\nM13\n")); err != nil {
-			return err
-		}
-		grblRegex := regexp.MustCompile(`GRBL\:\sV((\d+\.){2}\d+)`)
-		marlinRegex := regexp.MustCompile(`MARLIN\:\sV((\d+\.){2}\d+)`)
-		marlinTimeRegex := regexp.MustCompile(`Runtim1:(-?\d*\.\d*),`)
-		reader := bufio.NewReader(connector.port)
-		readbuf := make([]byte, 1024)
-		var readText string
-		startTime := time.Now()
-		for {
-			if time.Since(startTime) > 500*time.Millisecond {
-				connector.FirmwareType = "DobotSerial"
-				connector.FirmwareVersion = "0.0.0"
-				break
-			}
-			n, err := reader.Read(readbuf)
-			if err != nil {
-				return err
-			}
-			if n > 0 {
-				readText += string(readbuf[:n])
-				// 检查是否是GRBL固件
-				if matches := grblRegex.FindStringSubmatch(readText); matches != nil {
-					connector.FirmwareType = "GRBL"
-					connector.FirmwareVersion = matches[1]
-				} else if matches := marlinRegex.FindStringSubmatch(readText); matches != nil {
-					connector.FirmwareType = "MARLIN"
-					connector.FirmwareVersion = matches[1]
-					// 检查MARLIN的运行时间
-					if timeMatches := marlinTimeRegex.FindStringSubmatch(readText); timeMatches != nil {
-						runTimeFloat, _ := strconv.ParseFloat(timeMatches[1], 64)
-						connector.FirmwareRunTime = runTimeFloat
-					}
-				}
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
-		connector.port.Close()
-		return errors.New("firmware type not supported")
-	}
 	connector.Running = true
 	go connector.receiveGoRoutine(ctx)
 	return nil
 }
 
+func (connector *Connector) WritePacket(packet *Packet) error {
+	var checksum uint8
+	checksum += packet.Id
+	checksum += packet.Ctrl
+	for _, v := range packet.Params {
+		checksum += v
+	}
+	checksum = uint8(0) - checksum
+	var err error
+	if _, err = connector.port.Write([]byte{byte(SyncByte), byte(SyncByte), byte(len(packet.Params) + 2)}); err != nil {
+		return err
+	}
+	if _, err = connector.port.Write([]byte{byte(packet.Id), byte(packet.Ctrl)}); err != nil {
+		return err
+	}
+	if _, err = connector.port.Write(packet.Params); err != nil {
+		return err
+	}
+	if _, err = connector.port.Write([]byte{byte(checksum)}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (connector *Connector) receiveGoRoutine(ctx context.Context) {
-	readbuf := make([]byte, 1024)
+	var err error
 	reader := bufio.NewReader(connector.port)
 	for connector.Running {
 		if ctx.Err() != nil {
 			break
 		}
-		readLen, err := reader.Read(readbuf)
-		if err != nil {
+		var sbyte byte
+		if sbyte, err = reader.ReadByte(); err != nil {
 			break
 		}
-		fmt.Printf("read text: %s\n", string(readbuf[:readLen]))
+		if sbyte != SyncByte {
+			continue
+		}
+		if sbyte, err = reader.ReadByte(); err != nil {
+			break
+		}
+		if sbyte != SyncByte {
+			continue
+		}
+		// PayloadLen
+		if sbyte, err = reader.ReadByte(); err != nil {
+			break
+		}
+		if sbyte >= SyncByte {
+			continue
+		}
+		// id ctrl params + checksum
+		var data []byte
+		if data, err = reader.Peek(int(sbyte) + 1); err != nil {
+			break
+		}
+		var checksum uint8
+		for _, v := range data {
+			checksum += v
+		}
+		if checksum != 0 {
+			if _, err = reader.Discard(3); err != nil {
+				break
+			}
+			continue
+		}
+		packet := &Packet{}
+		packet.Id, _ = reader.ReadByte()
+		packet.Ctrl, _ = reader.ReadByte()
+		packet.Params = make([]byte, sbyte-2)
+		reader.Read(packet.Params)
+		reader.ReadByte()
+		connector.onMessage(packet.ToMessage())
+		packet = nil
 	}
+}
+
+func (connector *Connector) onMessage(message *Message) {
+
 }
