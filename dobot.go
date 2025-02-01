@@ -1,9 +1,11 @@
 package godobot
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 )
 
@@ -27,55 +29,6 @@ func (dobot *Dobot) Connect(portName string, baudrate uint32) error {
 	return nil
 }
 
-// DobotExec 执行Dobot命令
-func (dobot *Dobot) DobotExec() error {
-	message := &Message{
-		Id:       ProtocolQueuedCmdStartExec,
-		RW:       true,
-		IsQueued: false,
-	}
-	_, err := dobot.connector.SendMessage(context.Background(), message)
-	return err
-}
-
-// DisconnectDobot 断开与Dobot设备的连接
-func (dobot *Dobot) DisconnectDobot() error {
-	if dobot.connector.port != nil {
-		return dobot.connector.port.Close()
-	}
-	return nil
-}
-
-// GetMarlinVersion 获取Marlin版本
-func (dobot *Dobot) GetMarlinVersion() (uint8, error) {
-	message := &Message{
-		Id:       ProtocolDeviceVersion,
-		RW:       false,
-		IsQueued: false,
-	}
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
-	if err != nil {
-		return 0, err
-	}
-	if len(resp.Params) < 1 {
-		return 0, errors.New("invalid response")
-	}
-	return resp.Params[0], nil
-}
-
-// SetCmdTimeout 设置命令超时时间
-func (dobot *Dobot) SetCmdTimeout(timeout uint32) error {
-	message := &Message{
-		Id:       ProtocolId(0xFE), // 特殊命令
-		RW:       true,
-		IsQueued: false,
-		Params:   make([]byte, 4),
-	}
-	binary.LittleEndian.PutUint32(message.Params, timeout)
-	_, err := dobot.connector.SendMessage(context.Background(), message)
-	return err
-}
-
 // SetDeviceSN 设置设备序列号
 func (dobot *Dobot) SetDeviceSN(sn string) error {
 	if sn == "" {
@@ -85,8 +38,11 @@ func (dobot *Dobot) SetDeviceSN(sn string) error {
 		Id:       ProtocolDeviceSN,
 		RW:       true,
 		IsQueued: false,
-		Params:   []byte(sn),
 	}
+	writer := &bytes.Buffer{}
+	writer.WriteString(sn)
+	writer.WriteByte(0) // 添加一个字节 0x00 作为校验字节
+	message.Params = writer.Bytes()
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
 }
@@ -114,8 +70,9 @@ func (dobot *Dobot) SetDeviceName(name string) error {
 		Id:       ProtocolDeviceName,
 		RW:       true,
 		IsQueued: false,
-		Params:   []byte(name),
 	}
+	message.Params = []byte(name)
+	message.Params = append(message.Params, 0) // 添加一个字节 0x00 作为校验字节
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
 }
@@ -222,10 +179,10 @@ func (dobot *Dobot) GetDeviceInfo() (*DeviceCountInfo, error) {
 	if len(resp.Params) < 16 {
 		return nil, errors.New("invalid response")
 	}
-	info := &DeviceCountInfo{
-		DeviceRunTime:  binary.LittleEndian.Uint64(resp.Params[0:8]),
-		DevicePowerOn:  binary.LittleEndian.Uint32(resp.Params[8:12]),
-		DevicePowerOff: binary.LittleEndian.Uint32(resp.Params[12:16]),
+
+	info := &DeviceCountInfo{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, info); err != nil {
+		return nil, fmt.Errorf("failed to read device info: %v", err)
 	}
 	return info, nil
 }
@@ -244,14 +201,9 @@ func (dobot *Dobot) GetPose() (*Pose, error) {
 	if len(resp.Params) < 32 {
 		return nil, errors.New("invalid response")
 	}
-	pose := &Pose{
-		X: float32(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		Y: float32(binary.LittleEndian.Uint32(resp.Params[4:8])),
-		Z: float32(binary.LittleEndian.Uint32(resp.Params[8:12])),
-		R: float32(binary.LittleEndian.Uint32(resp.Params[12:16])),
-	}
-	for i := 0; i < 4; i++ {
-		pose.JointAngle[i] = float32(binary.LittleEndian.Uint32(resp.Params[16+i*4 : 20+i*4]))
+	pose := &Pose{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, pose); err != nil {
+		return nil, fmt.Errorf("failed to read pose: %v", err)
 	}
 	return pose, nil
 }
@@ -262,13 +214,16 @@ func (dobot *Dobot) ResetPose(manual bool, rearArmAngle, frontArmAngle float32) 
 		Id:       ProtocolResetPose,
 		RW:       true,
 		IsQueued: false,
-		Params:   make([]byte, 9),
 	}
+	writer := &bytes.Buffer{}
 	if manual {
-		message.Params[0] = 1
+		writer.WriteByte(1)
+	} else {
+		writer.WriteByte(0)
 	}
-	binary.LittleEndian.PutUint32(message.Params[1:5], math.Float32bits(rearArmAngle))
-	binary.LittleEndian.PutUint32(message.Params[5:9], math.Float32bits(frontArmAngle))
+	binary.Write(writer, binary.LittleEndian, rearArmAngle)
+	binary.Write(writer, binary.LittleEndian, frontArmAngle)
+	message.Params = writer.Bytes()
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
 }
@@ -286,9 +241,9 @@ func (dobot *Dobot) GetKinematics() (*Kinematics, error) {
 	if len(resp.Params) < 8 {
 		return nil, errors.New("invalid response")
 	}
-	kinematics := &Kinematics{
-		Velocity:     float32(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		Acceleration: float32(binary.LittleEndian.Uint32(resp.Params[4:8])),
+	kinematics := &Kinematics{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, kinematics); err != nil {
+		return nil, fmt.Errorf("failed to read kinematics: %v", err)
 	}
 	return kinematics, nil
 }
@@ -306,7 +261,9 @@ func (dobot *Dobot) GetPoseL() (float32, error) {
 	if len(resp.Params) < 4 {
 		return 0, errors.New("invalid response")
 	}
-	return float32(binary.LittleEndian.Uint32(resp.Params)), nil
+	var value float32
+	binary.Decode(resp.Params, binary.LittleEndian, &value)
+	return value, nil
 }
 
 // GetAlarmsState 获取报警状态
@@ -341,14 +298,10 @@ func (dobot *Dobot) SetHOMEParams(params *HOMEParams) (queuedCmdIndex uint64, er
 		Id:       ProtocolHOMEParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 16),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.X))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.Y))
-	binary.LittleEndian.PutUint32(message.Params[8:12], math.Float32bits(params.Z))
-	binary.LittleEndian.PutUint32(message.Params[12:16], math.Float32bits(params.R))
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -374,12 +327,9 @@ func (dobot *Dobot) GetHOMEParams() (*HOMEParams, error) {
 	if len(resp.Params) < 16 {
 		return nil, errors.New("invalid response")
 	}
-
-	params := &HOMEParams{
-		X: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		Y: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
-		Z: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[8:12])),
-		R: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[12:16])),
+	params := &HOMEParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read HOME params: %v", err)
 	}
 	return params, nil
 }
@@ -389,15 +339,14 @@ func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd) (queuedCmdIndex uint64, err error) 
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
-
 	message := &Message{
 		Id:       ProtocolHOMECmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 4),
 	}
-	binary.LittleEndian.PutUint32(message.Params[0:4], cmd.Reserved)
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cmd)
+	message.Params = writer.Bytes()
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -418,10 +367,10 @@ func (dobot *Dobot) SetAutoLevelingCmd(cmd *AutoLevelingCmd) (queuedCmdIndex uin
 		Id:       ProtocolAutoLeveling,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 5),
 	}
-	message.Params[0] = cmd.ControlFlag
-	binary.LittleEndian.PutUint32(message.Params[1:5], uint32(cmd.Precision))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cmd)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -539,13 +488,10 @@ func (dobot *Dobot) SetEndEffectorParams(params *EndEffectorParams) (queuedCmdIn
 		Id:       ProtocolEndEffectorParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 12),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.XBias))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.YBias))
-	binary.LittleEndian.PutUint32(message.Params[8:12], math.Float32bits(params.ZBias))
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -572,11 +518,9 @@ func (dobot *Dobot) GetEndEffectorParams() (*EndEffectorParams, error) {
 	if len(resp.Params) < 12 {
 		return nil, errors.New("invalid response")
 	}
-
-	params := &EndEffectorParams{
-		XBias: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		YBias: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
-		ZBias: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[8:12])),
+	params := &EndEffectorParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read END_EFFECTOR_PARAMS: %v", err)
 	}
 	return params, nil
 }
@@ -595,7 +539,6 @@ func (dobot *Dobot) SetEndEffectorLaser(enableCtrl bool, on bool) (queuedCmdInde
 	if on {
 		message.Params[1] = 1
 	}
-
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -639,7 +582,6 @@ func (dobot *Dobot) SetEndEffectorSuctionCup(enableCtrl bool, suck bool) (queued
 	if suck {
 		message.Params[1] = 1
 	}
-
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -756,24 +698,18 @@ func (dobot *Dobot) SetJOGJointParams(params *JOGJointParams) (queuedCmdIndex ui
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
-
 	message := &Message{
 		Id:       ProtocolJOGJointParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 32),
 	}
-
-	for i := 0; i < 4; i++ {
-		binary.LittleEndian.PutUint32(message.Params[i*4:i*4+4], math.Float32bits(params.Velocity[i]))
-		binary.LittleEndian.PutUint32(message.Params[16+i*4:16+i*4+4], math.Float32bits(params.Acceleration[i]))
-	}
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
 	}
-
 	if len(resp.Params) < 8 {
 		return 0, errors.New("invalid response")
 	}
@@ -797,9 +733,8 @@ func (dobot *Dobot) GetJOGJointParams() (*JOGJointParams, error) {
 	}
 
 	params := &JOGJointParams{}
-	for i := 0; i < 4; i++ {
-		params.Velocity[i] = math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[i*4 : i*4+4]))
-		params.Acceleration[i] = math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[16+i*4 : 16+i*4+4]))
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read JOG joint params: %v", err)
 	}
 	return params, nil
 }
@@ -814,13 +749,10 @@ func (dobot *Dobot) SetJOGCoordinateParams(params *JOGCoordinateParams) (queuedC
 		Id:       ProtocolJOGCoordinateParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 32),
 	}
-
-	for i := 0; i < 4; i++ {
-		binary.LittleEndian.PutUint32(message.Params[i*4:i*4+4], math.Float32bits(params.Velocity[i]))
-		binary.LittleEndian.PutUint32(message.Params[16+i*4:16+i*4+4], math.Float32bits(params.Acceleration[i]))
-	}
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -850,9 +782,8 @@ func (dobot *Dobot) GetJOGCoordinateParams() (*JOGCoordinateParams, error) {
 	}
 
 	params := &JOGCoordinateParams{}
-	for i := 0; i < 4; i++ {
-		params.Velocity[i] = math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[i*4 : i*4+4]))
-		params.Acceleration[i] = math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[16+i*4 : 16+i*4+4]))
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read JOG coordinate params: %v", err)
 	}
 	return params, nil
 }
@@ -867,11 +798,11 @@ func (dobot *Dobot) SetJOGLParams(params *JOGLParams) (queuedCmdIndex uint64, er
 		Id:       ProtocolJOGLParams,
 		RW:       true,
 		IsQueued: false, // C++实现中强制为false
-		Params:   make([]byte, 8),
 	}
 
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.Velocity))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.Acceleration))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	_, err = dobot.connector.SendMessage(context.Background(), message)
 	return 0, err // 由于IsQueued为false，所以不返回queuedCmdIndex
@@ -891,9 +822,9 @@ func (dobot *Dobot) GetJOGLParams() (*JOGLParams, error) {
 		return nil, errors.New("invalid response")
 	}
 
-	params := &JOGLParams{
-		Velocity:     math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		Acceleration: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
+	params := &JOGLParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read JOG L params: %v", err)
 	}
 	return params, nil
 }
@@ -908,11 +839,10 @@ func (dobot *Dobot) SetJOGCommonParams(params *JOGCommonParams) (queuedCmdIndex 
 		Id:       ProtocolJOGCommonParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 8),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.VelocityRatio))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.AccelerationRatio))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -941,9 +871,9 @@ func (dobot *Dobot) GetJOGCommonParams() (*JOGCommonParams, error) {
 		return nil, errors.New("invalid response")
 	}
 
-	params := &JOGCommonParams{
-		VelocityRatio:     math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		AccelerationRatio: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
+	params := &JOGCommonParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read JOG common params: %v", err)
 	}
 	return params, nil
 }
@@ -958,11 +888,10 @@ func (dobot *Dobot) SetJOGCmd(cmd *JOGCmd) (queuedCmdIndex uint64, err error) {
 		Id:       ProtocolJOGCmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 2),
 	}
-
-	message.Params[0] = cmd.IsJoint
-	message.Params[1] = cmd.Cmd
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cmd)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -986,13 +915,11 @@ func (dobot *Dobot) SetPTPJointParams(params *PTPJointParams) (queuedCmdIndex ui
 		Id:       ProtocolPTPJointParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 32),
 	}
 
-	for i := 0; i < 4; i++ {
-		binary.LittleEndian.PutUint32(message.Params[i*4:i*4+4], math.Float32bits(params.Velocity[i]))
-		binary.LittleEndian.PutUint32(message.Params[16+i*4:16+i*4+4], math.Float32bits(params.Acceleration[i]))
-	}
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1022,9 +949,8 @@ func (dobot *Dobot) GetPTPJointParams() (*PTPJointParams, error) {
 	}
 
 	params := &PTPJointParams{}
-	for i := 0; i < 4; i++ {
-		params.Velocity[i] = math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[i*4 : i*4+4]))
-		params.Acceleration[i] = math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[16+i*4 : 16+i*4+4]))
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read PTP joint params: %v", err)
 	}
 	return params, nil
 }
@@ -1039,13 +965,11 @@ func (dobot *Dobot) SetPTPCoordinateParams(params *PTPCoordinateParams) (queuedC
 		Id:       ProtocolPTPCoordinateParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 16),
 	}
 
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.XYZVelocity))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.RVelocity))
-	binary.LittleEndian.PutUint32(message.Params[8:12], math.Float32bits(params.XYZAcceleration))
-	binary.LittleEndian.PutUint32(message.Params[12:16], math.Float32bits(params.RAcceleration))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1074,11 +998,9 @@ func (dobot *Dobot) GetPTPCoordinateParams() (*PTPCoordinateParams, error) {
 		return nil, errors.New("invalid response")
 	}
 
-	params := &PTPCoordinateParams{
-		XYZVelocity:     math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		RVelocity:       math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
-		XYZAcceleration: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[8:12])),
-		RAcceleration:   math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[12:16])),
+	params := &PTPCoordinateParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read PTP coordinate params: %v", err)
 	}
 	return params, nil
 }
@@ -1093,11 +1015,11 @@ func (dobot *Dobot) SetPTPLParams(params *PTPLParams) (queuedCmdIndex uint64, er
 		Id:       ProtocolPTPLParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 8),
 	}
 
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.Velocity))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.Acceleration))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1126,9 +1048,9 @@ func (dobot *Dobot) GetPTPLParams() (*PTPLParams, error) {
 		return nil, errors.New("invalid response")
 	}
 
-	params := &PTPLParams{
-		Velocity:     math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		Acceleration: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
+	params := &PTPLParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read PTP L params: %v", err)
 	}
 	return params, nil
 }
@@ -1143,11 +1065,11 @@ func (dobot *Dobot) SetPTPJumpParams(params *PTPJumpParams) (queuedCmdIndex uint
 		Id:       ProtocolPTPJumpParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 8),
 	}
 
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.JumpHeight))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.ZLimit))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1176,9 +1098,9 @@ func (dobot *Dobot) GetPTPJumpParams() (*PTPJumpParams, error) {
 		return nil, errors.New("invalid response")
 	}
 
-	params := &PTPJumpParams{
-		JumpHeight: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		ZLimit:     math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
+	params := &PTPJumpParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read PTP jump params: %v", err)
 	}
 	return params, nil
 }
@@ -1193,12 +1115,11 @@ func (dobot *Dobot) SetPTPJump2Params(params *PTPJump2Params) (queuedCmdIndex ui
 		Id:       ProtocolPTPJump2Params,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 12),
 	}
 
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.StartJumpHeight))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.EndJumpHeight))
-	binary.LittleEndian.PutUint32(message.Params[8:12], math.Float32bits(params.ZLimit))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1227,10 +1148,9 @@ func (dobot *Dobot) GetPTPJump2Params() (*PTPJump2Params, error) {
 		return nil, errors.New("invalid response")
 	}
 
-	params := &PTPJump2Params{
-		StartJumpHeight: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		EndJumpHeight:   math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
-		ZLimit:          math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[8:12])),
+	params := &PTPJump2Params{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read PTP jump2 params: %v", err)
 	}
 	return params, nil
 }
@@ -1245,11 +1165,11 @@ func (dobot *Dobot) SetPTPCommonParams(params *PTPCommonParams) (queuedCmdIndex 
 		Id:       ProtocolPTPCommonParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 8),
 	}
 
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.VelocityRatio))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.AccelerationRatio))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1277,9 +1197,9 @@ func (dobot *Dobot) GetPTPCommonParams() (*PTPCommonParams, error) {
 		return nil, errors.New("invalid response")
 	}
 
-	params := &PTPCommonParams{
-		VelocityRatio:     math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		AccelerationRatio: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
+	params := &PTPCommonParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read PTP common params: %v", err)
 	}
 	return params, nil
 }
@@ -1289,25 +1209,18 @@ func (dobot *Dobot) SetPTPCmd(cmd *PTPCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
-
 	message := &Message{
 		Id:       ProtocolPTPCmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 20),
 	}
-
-	message.Params[0] = uint8(cmd.PTPMode)
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(cmd.X))
-	binary.LittleEndian.PutUint32(message.Params[8:12], math.Float32bits(cmd.Y))
-	binary.LittleEndian.PutUint32(message.Params[12:16], math.Float32bits(cmd.Z))
-	binary.LittleEndian.PutUint32(message.Params[16:20], math.Float32bits(cmd.R))
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cmd)
+	message.Params = writer.Bytes()
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
 	}
-
 	if len(resp.Params) < 8 {
 		return 0, errors.New("invalid response")
 	}
@@ -1325,15 +1238,10 @@ func (dobot *Dobot) SetPTPWithLCmd(cmd *PTPWithLCmd) (queuedCmdIndex uint64, err
 		Id:       ProtocolPTPWithLCmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 24),
 	}
-
-	message.Params[0] = uint8(cmd.PTPMode)
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(cmd.X))
-	binary.LittleEndian.PutUint32(message.Params[8:12], math.Float32bits(cmd.Y))
-	binary.LittleEndian.PutUint32(message.Params[12:16], math.Float32bits(cmd.Z))
-	binary.LittleEndian.PutUint32(message.Params[16:20], math.Float32bits(cmd.R))
-	binary.LittleEndian.PutUint32(message.Params[20:24], math.Float32bits(cmd.L))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cmd)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1352,19 +1260,14 @@ func (dobot *Dobot) SetCPParams(params *CPParams) (queuedCmdIndex uint64, err er
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
-
 	message := &Message{
 		Id:       ProtocolCPParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 13),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.PlanAcc))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.JuncitionVel))
-	binary.LittleEndian.PutUint32(message.Params[8:12], math.Float32bits(params.Acc))
-	message.Params[12] = params.RealTimeTrack
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -1387,15 +1290,10 @@ func (dobot *Dobot) SetCPCmd(cmd *CPCmd) (queuedCmdIndex uint64, err error) {
 		Id:       ProtocolCPCmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 17),
 	}
-
-	message.Params[0] = cmd.CPMode
-	binary.LittleEndian.PutUint32(message.Params[1:5], uint32(cmd.X))
-	binary.LittleEndian.PutUint32(message.Params[5:9], uint32(cmd.Y))
-	binary.LittleEndian.PutUint32(message.Params[9:13], uint32(cmd.Z))
-	binary.LittleEndian.PutUint32(message.Params[13:17], uint32(cmd.Velocity))
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cmd)
+	message.Params = writer.Bytes()
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -1414,15 +1312,14 @@ func (dobot *Dobot) SetCPLECmd(cpMode uint8, x, y, z, power float32) (queuedCmdI
 		Id:       ProtocolCPLECmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 17),
 	}
-
-	message.Params[0] = cpMode
-	binary.LittleEndian.PutUint32(message.Params[1:5], math.Float32bits(x))
-	binary.LittleEndian.PutUint32(message.Params[5:9], math.Float32bits(y))
-	binary.LittleEndian.PutUint32(message.Params[9:13], math.Float32bits(z))
-	binary.LittleEndian.PutUint32(message.Params[13:17], math.Float32bits(power))
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cpMode)
+	binary.Write(writer, binary.LittleEndian, x)
+	binary.Write(writer, binary.LittleEndian, y)
+	binary.Write(writer, binary.LittleEndian, z)
+	binary.Write(writer, binary.LittleEndian, power)
+	message.Params = writer.Bytes()
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -1472,17 +1369,14 @@ func (dobot *Dobot) SetCPCommonParams(params *CPCommonParams) (queuedCmdIndex ui
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
-
 	message := &Message{
 		Id:       ProtocolCPCommonParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 8),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], uint32(params.VelocityRatio))
-	binary.LittleEndian.PutUint32(message.Params[4:8], uint32(params.AccelerationRatio))
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -1510,9 +1404,9 @@ func (dobot *Dobot) GetCPCommonParams() (*CPCommonParams, error) {
 		return nil, errors.New("invalid response")
 	}
 
-	params := &CPCommonParams{
-		VelocityRatio:     float32(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		AccelerationRatio: float32(binary.LittleEndian.Uint32(resp.Params[4:8])),
+	params := &CPCommonParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read CP common params: %v", err)
 	}
 	return params, nil
 }
@@ -1527,14 +1421,10 @@ func (dobot *Dobot) SetARCParams(params *ARCParams) (queuedCmdIndex uint64, err 
 		Id:       ProtocolARCParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 16),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.XYZVelocity))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.RVelocity))
-	binary.LittleEndian.PutUint32(message.Params[8:12], math.Float32bits(params.XYZAcceleration))
-	binary.LittleEndian.PutUint32(message.Params[12:16], math.Float32bits(params.RAcceleration))
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -1562,11 +1452,9 @@ func (dobot *Dobot) GetARCParams() (*ARCParams, error) {
 		return nil, errors.New("invalid response")
 	}
 
-	params := &ARCParams{
-		XYZVelocity:     math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		RVelocity:       math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
-		XYZAcceleration: math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[8:12])),
-		RAcceleration:   math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[12:16])),
+	params := &ARCParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read ARC params: %v", err)
 	}
 	return params, nil
 }
@@ -1581,17 +1469,10 @@ func (dobot *Dobot) SetARCCmd(cmd *ARCCmd) (queuedCmdIndex uint64, err error) {
 		Id:       ProtocolARCCmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 32),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], uint32(cmd.CirPoint.X))
-	binary.LittleEndian.PutUint32(message.Params[4:8], uint32(cmd.CirPoint.Y))
-	binary.LittleEndian.PutUint32(message.Params[8:12], uint32(cmd.CirPoint.Z))
-	binary.LittleEndian.PutUint32(message.Params[12:16], uint32(cmd.CirPoint.R))
-	binary.LittleEndian.PutUint32(message.Params[16:20], uint32(cmd.ToPoint.X))
-	binary.LittleEndian.PutUint32(message.Params[20:24], uint32(cmd.ToPoint.Y))
-	binary.LittleEndian.PutUint32(message.Params[24:28], uint32(cmd.ToPoint.Z))
-	binary.LittleEndian.PutUint32(message.Params[28:32], uint32(cmd.ToPoint.R))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cmd)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1615,18 +1496,10 @@ func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd) (queuedCmdIndex uint64, err err
 		Id:       ProtocolCircleCmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 36),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], uint32(cmd.CirPoint.X))
-	binary.LittleEndian.PutUint32(message.Params[4:8], uint32(cmd.CirPoint.Y))
-	binary.LittleEndian.PutUint32(message.Params[8:12], uint32(cmd.CirPoint.Z))
-	binary.LittleEndian.PutUint32(message.Params[12:16], uint32(cmd.CirPoint.R))
-	binary.LittleEndian.PutUint32(message.Params[16:20], uint32(cmd.ToPoint.X))
-	binary.LittleEndian.PutUint32(message.Params[20:24], uint32(cmd.ToPoint.Y))
-	binary.LittleEndian.PutUint32(message.Params[24:28], uint32(cmd.ToPoint.Z))
-	binary.LittleEndian.PutUint32(message.Params[28:32], uint32(cmd.ToPoint.R))
-	binary.LittleEndian.PutUint32(message.Params[32:36], cmd.Count)
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cmd)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1650,11 +1523,10 @@ func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams) (queuedCmdIndex 
 		Id:       ProtocolARCCommonParams,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 8),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], uint32(params.VelocityRatio))
-	binary.LittleEndian.PutUint32(message.Params[4:8], uint32(params.AccelerationRatio))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1683,9 +1555,9 @@ func (dobot *Dobot) GetARCCommonParams() (*ARCCommonParams, error) {
 		return nil, errors.New("invalid response")
 	}
 
-	params := &ARCCommonParams{
-		VelocityRatio:     float32(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		AccelerationRatio: float32(binary.LittleEndian.Uint32(resp.Params[4:8])),
+	params := &ARCCommonParams{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, params); err != nil {
+		return nil, fmt.Errorf("failed to read ARC common params: %v", err)
 	}
 	return params, nil
 }
@@ -1700,10 +1572,10 @@ func (dobot *Dobot) SetWAITCmd(cmd *WAITCmd) (queuedCmdIndex uint64, err error) 
 		Id:       ProtocolWAITCmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 4),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], cmd.Timeout)
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cmd)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1727,13 +1599,10 @@ func (dobot *Dobot) SetTRIGCmd(cmd *TRIGCmd) (queuedCmdIndex uint64, err error) 
 		Id:       ProtocolTRIGCmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 7),
 	}
-
-	message.Params[0] = cmd.Address
-	message.Params[1] = cmd.Mode
-	message.Params[2] = cmd.Condition
-	binary.LittleEndian.PutUint32(message.Params[3:7], uint32(cmd.Threshold))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, cmd)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1757,11 +1626,10 @@ func (dobot *Dobot) SetIOMultiplexing(params *IOMultiplexing) (queuedCmdIndex ui
 		Id:       ProtocolIOMultiplexing,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 2),
 	}
-
-	message.Params[0] = params.Address
-	message.Params[1] = params.Multiplex
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1785,11 +1653,10 @@ func (dobot *Dobot) SetIODO(params *IODO) (queuedCmdIndex uint64, err error) {
 		Id:       ProtocolIODO,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 2),
 	}
-
-	message.Params[0] = params.Address
-	message.Params[1] = params.Level
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1813,12 +1680,10 @@ func (dobot *Dobot) SetIOPWM(params *IOPWM) (queuedCmdIndex uint64, err error) {
 		Id:       ProtocolIOPWM,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 9),
 	}
-
-	message.Params[0] = params.Address
-	binary.LittleEndian.PutUint32(message.Params[1:5], math.Float32bits(params.Frequency))
-	binary.LittleEndian.PutUint32(message.Params[5:9], math.Float32bits(params.DutyCycle))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1842,14 +1707,11 @@ func (dobot *Dobot) SetEMotor(params *EMotor) (queuedCmdIndex uint64, err error)
 		Id:       ProtocolEMotor,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 6),
 	}
 
-	message.Params[0] = params.Index
-	if params.IsEnabled {
-		message.Params[1] = 1
-	}
-	binary.LittleEndian.PutUint32(message.Params[2:6], uint32(params.Speed))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1872,15 +1734,10 @@ func (dobot *Dobot) SetEMotorS(params *EMotorS) (queuedCmdIndex uint64, err erro
 		Id:       ProtocolEMotorS,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 10),
 	}
-
-	message.Params[0] = params.Index
-	if params.IsEnabled {
-		message.Params[1] = 1
-	}
-	binary.LittleEndian.PutUint32(message.Params[2:6], uint32(params.Speed))
-	binary.LittleEndian.PutUint32(message.Params[6:10], params.Distance)
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, params)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -1899,14 +1756,12 @@ func (dobot *Dobot) SetColorSensor(enable bool, colorPort ColorPort, version uin
 		Id:       ProtocolColorSensor,
 		RW:       true,
 		IsQueued: false,
-		Params:   make([]byte, 3),
 	}
-
-	if enable {
-		message.Params[0] = 1
-	}
-	message.Params[1] = uint8(colorPort)
-	message.Params[2] = version
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, enable)
+	binary.Write(writer, binary.LittleEndian, colorPort)
+	binary.Write(writer, binary.LittleEndian, version)
+	message.Params = writer.Bytes()
 
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
@@ -1935,14 +1790,12 @@ func (dobot *Dobot) SetInfraredSensor(enable bool, infraredPort InfraredPort, ve
 		Id:       ProtocolInfraredSensor,
 		RW:       true,
 		IsQueued: false,
-		Params:   make([]byte, 3),
 	}
-
-	if enable {
-		message.Params[0] = 1
-	}
-	message.Params[1] = uint8(infraredPort)
-	message.Params[2] = version
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, enable)
+	binary.Write(writer, binary.LittleEndian, infraredPort)
+	binary.Write(writer, binary.LittleEndian, version)
+	message.Params = writer.Bytes()
 
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
@@ -1972,11 +1825,11 @@ func (dobot *Dobot) SetAngleSensorStaticError(rearArmAngleError, frontArmAngleEr
 		Id:       ProtocolAngleSensorStaticError,
 		RW:       true,
 		IsQueued: false,
-		Params:   make([]byte, 8),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(rearArmAngleError))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(frontArmAngleError))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, rearArmAngleError)
+	binary.Write(writer, binary.LittleEndian, frontArmAngleError)
+	message.Params = writer.Bytes()
 
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
@@ -2006,11 +1859,11 @@ func (dobot *Dobot) SetAngleSensorCoef(rearArmAngleCoef, frontArmAngleCoef float
 		Id:       ProtocolAngleSensorCoef,
 		RW:       true,
 		IsQueued: false,
-		Params:   make([]byte, 8),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(rearArmAngleCoef))
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(frontArmAngleCoef))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, rearArmAngleCoef)
+	binary.Write(writer, binary.LittleEndian, frontArmAngleCoef)
+	message.Params = writer.Bytes()
 
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
@@ -2072,10 +1925,10 @@ func (dobot *Dobot) SetLRHandCalibrateValue(lrHandCalibrateValue float32) error 
 		Id:       ProtocolLRHandCalibrateValue,
 		RW:       true,
 		IsQueued: false,
-		Params:   make([]byte, 4),
 	}
-
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(lrHandCalibrateValue))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, lrHandCalibrateValue)
+	message.Params = writer.Bytes()
 
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
@@ -2096,6 +1949,17 @@ func (dobot *Dobot) GetLRHandCalibrateValue() (float32, error) {
 		return 0, errors.New("invalid response")
 	}
 	return math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])), nil
+}
+
+// SetQueuedCmdStartExec 执行Dobot命令
+func (dobot *Dobot) SetQueuedCmdStartExec() error {
+	message := &Message{
+		Id:       ProtocolQueuedCmdStartExec,
+		RW:       true,
+		IsQueued: false,
+	}
+	_, err := dobot.connector.SendMessage(context.Background(), message)
+	return err
 }
 
 // SetQueuedCmdStopExec 停止执行队列命令
@@ -2126,10 +1990,12 @@ func (dobot *Dobot) SetQueuedCmdStartDownload(totalLoop uint32, linePerLoop uint
 		Id:       ProtocolQueuedCmdStartDownload,
 		RW:       true,
 		IsQueued: false,
-		Params:   make([]byte, 8),
 	}
-	binary.LittleEndian.PutUint32(message.Params[0:4], totalLoop)
-	binary.LittleEndian.PutUint32(message.Params[4:8], linePerLoop)
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, totalLoop)
+	binary.Write(writer, binary.LittleEndian, linePerLoop)
+	message.Params = writer.Bytes()
+
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
 }
@@ -2195,36 +2061,16 @@ func (dobot *Dobot) SetPTPPOCmd(ptpCmd *PTPCmd, parallelCmd []ParallelOutputCmd)
 	if ptpCmd == nil {
 		return 0, errors.New("invalid params: ptpCmd is nil")
 	}
-
-	// 计算参数总长度
-	paramsLen := 20 // PTPCmd size
-	paramsLen += 1  // parallelCmdCount
-	if len(parallelCmd) > 0 {
-		paramsLen += len(parallelCmd) * 4 // ParallelOutputCmd size
-	}
-
 	message := &Message{
 		Id:       ProtocolPTPPOCmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, paramsLen),
 	}
-
-	// 设置PTPCmd
-	message.Params[0] = uint8(ptpCmd.PTPMode)
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(ptpCmd.X))
-	binary.LittleEndian.PutUint32(message.Params[8:12], math.Float32bits(ptpCmd.Y))
-	binary.LittleEndian.PutUint32(message.Params[12:16], math.Float32bits(ptpCmd.Z))
-	binary.LittleEndian.PutUint32(message.Params[16:20], math.Float32bits(ptpCmd.R))
-
-	// 设置ParallelOutputCmd
-	message.Params[20] = uint8(len(parallelCmd))
-	for i, cmd := range parallelCmd {
-		offset := 21 + i*4
-		message.Params[offset] = cmd.Ratio
-		binary.LittleEndian.PutUint16(message.Params[offset+1:offset+3], cmd.Address)
-		message.Params[offset+3] = cmd.Level
-	}
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, ptpCmd)
+	writer.WriteByte(uint8(len(parallelCmd)))
+	binary.Write(writer, binary.LittleEndian, parallelCmd)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -2243,37 +2089,16 @@ func (dobot *Dobot) SetPTPPOWithLCmd(ptpWithLCmd *PTPWithLCmd, parallelCmd []Par
 	if ptpWithLCmd == nil {
 		return 0, errors.New("invalid params: ptpWithLCmd is nil")
 	}
-
-	// 计算参数总长度
-	paramsLen := 24 // PTPWithLCmd size
-	paramsLen += 1  // parallelCmdCount
-	if len(parallelCmd) > 0 {
-		paramsLen += len(parallelCmd) * 4 // ParallelOutputCmd size
-	}
-
 	message := &Message{
 		Id:       ProtocolPTPPOWithLCmd,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, paramsLen),
 	}
-
-	// 设置PTPWithLCmd
-	message.Params[0] = uint8(ptpWithLCmd.PTPMode)
-	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(ptpWithLCmd.X))
-	binary.LittleEndian.PutUint32(message.Params[8:12], math.Float32bits(ptpWithLCmd.Y))
-	binary.LittleEndian.PutUint32(message.Params[12:16], math.Float32bits(ptpWithLCmd.Z))
-	binary.LittleEndian.PutUint32(message.Params[16:20], math.Float32bits(ptpWithLCmd.R))
-	binary.LittleEndian.PutUint32(message.Params[20:24], math.Float32bits(ptpWithLCmd.L))
-
-	// 设置ParallelOutputCmd
-	message.Params[24] = uint8(len(parallelCmd))
-	for i, cmd := range parallelCmd {
-		offset := 25 + i*4
-		message.Params[offset] = cmd.Ratio
-		binary.LittleEndian.PutUint16(message.Params[offset+1:offset+3], cmd.Address)
-		message.Params[offset+3] = cmd.Level
-	}
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, ptpWithLCmd)
+	writer.WriteByte(uint8(len(parallelCmd)))
+	binary.Write(writer, binary.LittleEndian, parallelCmd)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
@@ -2330,8 +2155,13 @@ func (dobot *Dobot) SetWIFISSID(ssid string) error {
 		Id:       ProtocolWIFISSID,
 		RW:       true,
 		IsQueued: false,
-		Params:   []byte(ssid),
 	}
+
+	writer := &bytes.Buffer{}
+	writer.WriteString(ssid)
+	writer.WriteByte(0) // 添加一个字节 0x00 作为校验字节
+	message.Params = writer.Bytes()
+
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
 }
@@ -2359,8 +2189,13 @@ func (dobot *Dobot) SetWIFIPassword(password string) error {
 		Id:       ProtocolWIFIPassword,
 		RW:       true,
 		IsQueued: false,
-		Params:   []byte(password),
 	}
+
+	writer := &bytes.Buffer{}
+	writer.WriteString(password)
+	writer.WriteByte(0) // 添加一个字节 0x00 作为校验字节
+	message.Params = writer.Bytes()
+
 	_, err := dobot.connector.SendMessage(context.Background(), message)
 	return err
 }
@@ -2385,10 +2220,11 @@ func (dobot *Dobot) SetLostStepParams(threshold float32) (queuedCmdIndex uint64,
 		Id:       ProtocolLostStepSet,
 		RW:       true,
 		IsQueued: true,
-		Params:   make([]byte, 4),
 	}
 
-	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(threshold))
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, threshold)
+	message.Params = writer.Bytes()
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {

@@ -77,6 +77,7 @@ func (outmsg *outMessage) Close() {
 
 type Connector struct {
 	port         io.ReadWriteCloser
+	stopChan     chan error
 	errChan      chan error
 	messageAck   chan *Message
 	messageQueue chan *outMessage
@@ -111,6 +112,7 @@ func (connector *Connector) Open(ctx context.Context, name string, baudrate uint
 		}
 		connector.port = serialPort
 	}
+	connector.stopChan = make(chan error, 0x01)
 	connector.errChan = make(chan error)
 	connector.messageAck = make(chan *Message)
 	connector.messageQueue = make(chan *outMessage)
@@ -276,6 +278,7 @@ func (connector *Connector) processGoRoutine(ctx context.Context) {
 			}
 		}
 	}
+	connector.stopChan <- err
 }
 
 func (connector *Connector) SendMessage(ctx context.Context, message *Message) (*Message, error) {
