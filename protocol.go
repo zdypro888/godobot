@@ -204,3 +204,8 @@ const (
 const (
 // ProtocolMax ProtocolID = 256
 )
+
+// 传感器相关协议ID
+const (
+	ProtocolInfraredSensor ProtocolId = 0x80 // 红外传感器
+)
