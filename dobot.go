@@ -152,11 +152,11 @@ func (dobot *Dobot) GetDeviceVersion() (majorVersion, minorVersion, revision, hw
 }
 
 // SetDeviceWithL 设置设备L轴
-func (dobot *Dobot) SetDeviceWithL(isWithL bool, version uint8, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetDeviceWithL(isWithL bool, version uint8) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolDeviceWithL,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 2),
 	}
 	if isWithL {
@@ -167,12 +167,10 @@ func (dobot *Dobot) SetDeviceWithL(isWithL bool, version uint8, isQueued bool) (
 	if err != nil {
 		return 0, err
 	}
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -335,18 +333,14 @@ func (dobot *Dobot) ClearAllAlarmsState() error {
 }
 
 // SetHOMEParams 设置HOME参数
-func (dobot *Dobot) SetHOMEParams(params *HOMEParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetHOMEParams(params *HOMEParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
-
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolHOMEParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 16),
 	}
 
@@ -359,13 +353,10 @@ func (dobot *Dobot) SetHOMEParams(params *HOMEParams, isQueued bool) (queuedCmdI
 	if err != nil {
 		return 0, err
 	}
-
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -394,18 +385,15 @@ func (dobot *Dobot) GetHOMEParams() (*HOMEParams, error) {
 }
 
 // SetHOMECmd 设置HOME命令
-func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolHOMECmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 4),
 	}
 	binary.LittleEndian.PutUint32(message.Params[0:4], cmd.Reserved)
@@ -414,29 +402,22 @@ func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd, isQueued bool) (queuedCmdIndex uint
 	if err != nil {
 		return 0, err
 	}
-
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
 // SetAutoLevelingCmd 设置自动调平命令
-func (dobot *Dobot) SetAutoLevelingCmd(cmd *AutoLevelingCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetAutoLevelingCmd(cmd *AutoLevelingCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
-
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolAutoLeveling,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 5),
 	}
 	message.Params[0] = cmd.ControlFlag
@@ -446,13 +427,10 @@ func (dobot *Dobot) SetAutoLevelingCmd(cmd *AutoLevelingCmd, isQueued bool) (que
 	if err != nil {
 		return 0, err
 	}
-
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -552,18 +530,15 @@ func (dobot *Dobot) GetHHTTrigOutput() (bool, error) {
 }
 
 // SetEndEffectorParams 设置末端执行器参数
-func (dobot *Dobot) SetEndEffectorParams(params *EndEffectorParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetEndEffectorParams(params *EndEffectorParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolEndEffectorParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 12),
 	}
 
@@ -576,12 +551,10 @@ func (dobot *Dobot) SetEndEffectorParams(params *EndEffectorParams, isQueued boo
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -609,11 +582,11 @@ func (dobot *Dobot) GetEndEffectorParams() (*EndEffectorParams, error) {
 }
 
 // SetEndEffectorLaser 设置末端执行器激光
-func (dobot *Dobot) SetEndEffectorLaser(enableCtrl bool, on bool, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetEndEffectorLaser(enableCtrl bool, on bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorLaser,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 2),
 	}
 	if enableCtrl {
@@ -628,12 +601,10 @@ func (dobot *Dobot) SetEndEffectorLaser(enableCtrl bool, on bool, isQueued bool)
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -655,11 +626,11 @@ func (dobot *Dobot) GetEndEffectorLaser() (isCtrlEnabled bool, isOn bool, err er
 }
 
 // SetEndEffectorSuctionCup 设置末端执行器吸盘
-func (dobot *Dobot) SetEndEffectorSuctionCup(enableCtrl bool, suck bool, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetEndEffectorSuctionCup(enableCtrl bool, suck bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorSuctionCup,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 2),
 	}
 	if enableCtrl {
@@ -674,12 +645,10 @@ func (dobot *Dobot) SetEndEffectorSuctionCup(enableCtrl bool, suck bool, isQueue
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -701,11 +670,11 @@ func (dobot *Dobot) GetEndEffectorSuctionCup() (isCtrlEnabled bool, isSucked boo
 }
 
 // SetEndEffectorGripper 设置末端执行器夹爪
-func (dobot *Dobot) SetEndEffectorGripper(enableCtrl bool, grip bool, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetEndEffectorGripper(enableCtrl bool, grip bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorGripper,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 2),
 	}
 	if enableCtrl {
@@ -720,12 +689,10 @@ func (dobot *Dobot) SetEndEffectorGripper(enableCtrl bool, grip bool, isQueued b
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -747,14 +714,11 @@ func (dobot *Dobot) GetEndEffectorGripper() (isCtrlEnabled bool, isGripped bool,
 }
 
 // SetArmOrientation 设置机械臂方向
-func (dobot *Dobot) SetArmOrientation(armOrientation ArmOrientation, isQueued bool) (queuedCmdIndex uint64, err error) {
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
+func (dobot *Dobot) SetArmOrientation(armOrientation ArmOrientation) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolArmOrientation,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   []byte{uint8(armOrientation)},
 	}
 
@@ -763,12 +727,10 @@ func (dobot *Dobot) SetArmOrientation(armOrientation ArmOrientation, isQueued bo
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -790,18 +752,15 @@ func (dobot *Dobot) GetArmOrientation() (ArmOrientation, error) {
 }
 
 // SetJOGJointParams 设置JOG关节参数
-func (dobot *Dobot) SetJOGJointParams(params *JOGJointParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetJOGJointParams(params *JOGJointParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolJOGJointParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 32),
 	}
 
@@ -815,12 +774,10 @@ func (dobot *Dobot) SetJOGJointParams(params *JOGJointParams, isQueued bool) (qu
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -848,18 +805,15 @@ func (dobot *Dobot) GetJOGJointParams() (*JOGJointParams, error) {
 }
 
 // SetJOGCoordinateParams 设置JOG坐标参数
-func (dobot *Dobot) SetJOGCoordinateParams(params *JOGCoordinateParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetJOGCoordinateParams(params *JOGCoordinateParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolJOGCoordinateParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 32),
 	}
 
@@ -873,12 +827,10 @@ func (dobot *Dobot) SetJOGCoordinateParams(params *JOGCoordinateParams, isQueued
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -906,36 +858,23 @@ func (dobot *Dobot) GetJOGCoordinateParams() (*JOGCoordinateParams, error) {
 }
 
 // SetJOGLParams 设置JOGL参数
-func (dobot *Dobot) SetJOGLParams(params *JOGLParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetJOGLParams(params *JOGLParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为false
-	isQueued = false
-
 	message := &Message{
 		Id:       ProtocolJOGLParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: false, // C++实现中强制为false
 		Params:   make([]byte, 8),
 	}
 
 	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(params.Velocity))
 	binary.LittleEndian.PutUint32(message.Params[4:8], math.Float32bits(params.Acceleration))
 
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
-	if err != nil {
-		return 0, err
-	}
-
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
-	}
-	return queuedCmdIndex, nil
+	_, err = dobot.connector.SendMessage(context.Background(), message)
+	return 0, err // 由于IsQueued为false，所以不返回queuedCmdIndex
 }
 
 func (dobot *Dobot) GetJOGLParams() (*JOGLParams, error) {
@@ -960,15 +899,15 @@ func (dobot *Dobot) GetJOGLParams() (*JOGLParams, error) {
 }
 
 // SetJOGCommonParams 设置JOG通用参数
-func (dobot *Dobot) SetJOGCommonParams(params *JOGCommonParams, isQueued bool, queuedCmdIndex *uint64) error {
+func (dobot *Dobot) SetJOGCommonParams(params *JOGCommonParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
-		return errors.New("invalid params: params is nil")
+		return 0, errors.New("invalid params: params is nil")
 	}
 
 	message := &Message{
 		Id:       ProtocolJOGCommonParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 8),
 	}
 
@@ -977,16 +916,14 @@ func (dobot *Dobot) SetJOGCommonParams(params *JOGCommonParams, isQueued bool, q
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return errors.New("invalid response")
-		}
-		*queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
-	return nil
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	return queuedCmdIndex, nil
 }
 
 // GetJOGCommonParams 获取JOG通用参数
@@ -1012,15 +949,15 @@ func (dobot *Dobot) GetJOGCommonParams() (*JOGCommonParams, error) {
 }
 
 // SetJOGCmd 设置JOG命令
-func (dobot *Dobot) SetJOGCmd(cmd *JOGCmd, isQueued bool, queuedCmdIndex *uint64) error {
+func (dobot *Dobot) SetJOGCmd(cmd *JOGCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
-		return errors.New("invalid params: cmd is nil")
+		return 0, errors.New("invalid params: cmd is nil")
 	}
 
 	message := &Message{
 		Id:       ProtocolJOGCmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 2),
 	}
 
@@ -1029,31 +966,26 @@ func (dobot *Dobot) SetJOGCmd(cmd *JOGCmd, isQueued bool, queuedCmdIndex *uint64
 
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return errors.New("invalid response")
-		}
-		*queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
-	return nil
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	return queuedCmdIndex, nil
 }
 
 // SetPTPJointParams 设置PTP关节参数
-func (dobot *Dobot) SetPTPJointParams(params *PTPJointParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetPTPJointParams(params *PTPJointParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolPTPJointParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 32),
 	}
 
@@ -1067,12 +999,10 @@ func (dobot *Dobot) SetPTPJointParams(params *PTPJointParams, isQueued bool) (qu
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -1100,18 +1030,15 @@ func (dobot *Dobot) GetPTPJointParams() (*PTPJointParams, error) {
 }
 
 // SetPTPCoordinateParams 设置PTP坐标参数
-func (dobot *Dobot) SetPTPCoordinateParams(params *PTPCoordinateParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetPTPCoordinateParams(params *PTPCoordinateParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolPTPCoordinateParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 16),
 	}
 
@@ -1125,12 +1052,10 @@ func (dobot *Dobot) SetPTPCoordinateParams(params *PTPCoordinateParams, isQueued
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -1159,18 +1084,15 @@ func (dobot *Dobot) GetPTPCoordinateParams() (*PTPCoordinateParams, error) {
 }
 
 // SetPTPLParams 设置PTPL参数
-func (dobot *Dobot) SetPTPLParams(params *PTPLParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetPTPLParams(params *PTPLParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolPTPLParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 8),
 	}
 
@@ -1182,12 +1104,10 @@ func (dobot *Dobot) SetPTPLParams(params *PTPLParams, isQueued bool) (queuedCmdI
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -1214,18 +1134,15 @@ func (dobot *Dobot) GetPTPLParams() (*PTPLParams, error) {
 }
 
 // SetPTPJumpParams 设置PTP跳跃参数
-func (dobot *Dobot) SetPTPJumpParams(params *PTPJumpParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetPTPJumpParams(params *PTPJumpParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolPTPJumpParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 8),
 	}
 
@@ -1237,12 +1154,10 @@ func (dobot *Dobot) SetPTPJumpParams(params *PTPJumpParams, isQueued bool) (queu
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -1269,18 +1184,15 @@ func (dobot *Dobot) GetPTPJumpParams() (*PTPJumpParams, error) {
 }
 
 // SetPTPJump2Params 设置PTP跳跃2参数
-func (dobot *Dobot) SetPTPJump2Params(params *PTPJump2Params, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetPTPJump2Params(params *PTPJump2Params) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolPTPJump2Params,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 12),
 	}
 
@@ -1293,12 +1205,10 @@ func (dobot *Dobot) SetPTPJump2Params(params *PTPJump2Params, isQueued bool) (qu
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -1326,18 +1236,15 @@ func (dobot *Dobot) GetPTPJump2Params() (*PTPJump2Params, error) {
 }
 
 // SetPTPCommonParams 设置PTP通用参数
-func (dobot *Dobot) SetPTPCommonParams(params *PTPCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetPTPCommonParams(params *PTPCommonParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolPTPCommonParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 8),
 	}
 
@@ -1349,12 +1256,10 @@ func (dobot *Dobot) SetPTPCommonParams(params *PTPCommonParams, isQueued bool) (
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -1380,18 +1285,15 @@ func (dobot *Dobot) GetPTPCommonParams() (*PTPCommonParams, error) {
 }
 
 // SetPTPCmd 设置PTP命令
-func (dobot *Dobot) SetPTPCmd(cmd *PTPCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetPTPCmd(cmd *PTPCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolPTPCmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 20),
 	}
 
@@ -1406,28 +1308,23 @@ func (dobot *Dobot) SetPTPCmd(cmd *PTPCmd, isQueued bool) (queuedCmdIndex uint64
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
 // SetPTPWithLCmd 设置带L轴的PTP命令
-func (dobot *Dobot) SetPTPWithLCmd(cmd *PTPWithLCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetPTPWithLCmd(cmd *PTPWithLCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolPTPWithLCmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 24),
 	}
 
@@ -1443,28 +1340,23 @@ func (dobot *Dobot) SetPTPWithLCmd(cmd *PTPWithLCmd, isQueued bool) (queuedCmdIn
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
 // SetCPParams 设置CP参数
-func (dobot *Dobot) SetCPParams(params *CPParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetCPParams(params *CPParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolCPParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 13),
 	}
 
@@ -1478,51 +1370,23 @@ func (dobot *Dobot) SetCPParams(params *CPParams, isQueued bool) (queuedCmdIndex
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
-func (dobot *Dobot) GetCPParams() (*CPParams, error) {
-	message := &Message{
-		Id:       ProtocolCPParams,
-		RW:       false,
-		IsQueued: false,
-	}
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp.Params) < 13 {
-		return nil, errors.New("invalid response")
-	}
-
-	params := &CPParams{
-		PlanAcc:       math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])),
-		JuncitionVel:  math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8])),
-		Acc:           math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[8:12])),
-		RealTimeTrack: resp.Params[12],
-	}
-	return params, nil
-}
-
 // SetCPCmd 设置CP命令
-func (dobot *Dobot) SetCPCmd(cmd *CPCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetCPCmd(cmd *CPCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolCPCmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 17),
 	}
 
@@ -1537,24 +1401,19 @@ func (dobot *Dobot) SetCPCmd(cmd *CPCmd, isQueued bool) (queuedCmdIndex uint64, 
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
 // SetCPLECmd 设置CPLE命令
-func (dobot *Dobot) SetCPLECmd(cpMode uint8, x, y, z, power float32, isQueued bool) (queuedCmdIndex uint64, err error) {
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
+func (dobot *Dobot) SetCPLECmd(cpMode uint8, x, y, z, power float32) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolCPLECmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 17),
 	}
 
@@ -1569,12 +1428,10 @@ func (dobot *Dobot) SetCPLECmd(cpMode uint8, x, y, z, power float32, isQueued bo
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -1611,18 +1468,15 @@ func (dobot *Dobot) GetCPRHoldEnable() (bool, error) {
 }
 
 // SetCPCommonParams 设置CP通用参数
-func (dobot *Dobot) SetCPCommonParams(params *CPCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetCPCommonParams(params *CPCommonParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolCPCommonParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 8),
 	}
 
@@ -1634,12 +1488,10 @@ func (dobot *Dobot) SetCPCommonParams(params *CPCommonParams, isQueued bool) (qu
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -1666,18 +1518,15 @@ func (dobot *Dobot) GetCPCommonParams() (*CPCommonParams, error) {
 }
 
 // SetARCParams 设置ARC参数
-func (dobot *Dobot) SetARCParams(params *ARCParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetARCParams(params *ARCParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolARCParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 16),
 	}
 
@@ -1691,12 +1540,10 @@ func (dobot *Dobot) SetARCParams(params *ARCParams, isQueued bool) (queuedCmdInd
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -1725,18 +1572,15 @@ func (dobot *Dobot) GetARCParams() (*ARCParams, error) {
 }
 
 // SetARCCmd 设置ARC命令
-func (dobot *Dobot) SetARCCmd(cmd *ARCCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetARCCmd(cmd *ARCCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolARCCmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 32),
 	}
 
@@ -1754,28 +1598,23 @@ func (dobot *Dobot) SetARCCmd(cmd *ARCCmd, isQueued bool) (queuedCmdIndex uint64
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
 // SetCircleCmd 设置圆弧命令
-func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolCircleCmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 36),
 	}
 
@@ -1794,28 +1633,23 @@ func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd, isQueued bool) (queuedCmdIndex 
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
 // SetARCCommonParams 设置ARC通用参数
-func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolARCCommonParams,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 8),
 	}
 
@@ -1827,12 +1661,10 @@ func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams, isQueued bool) (
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -1859,18 +1691,15 @@ func (dobot *Dobot) GetARCCommonParams() (*ARCCommonParams, error) {
 }
 
 // SetWAITCmd 设置等待命令
-func (dobot *Dobot) SetWAITCmd(cmd *WAITCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetWAITCmd(cmd *WAITCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolWAITCmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 4),
 	}
 
@@ -1881,28 +1710,23 @@ func (dobot *Dobot) SetWAITCmd(cmd *WAITCmd, isQueued bool) (queuedCmdIndex uint
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
 // SetTRIGCmd 设置触发命令
-func (dobot *Dobot) SetTRIGCmd(cmd *TRIGCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetTRIGCmd(cmd *TRIGCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolTRIGCmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 7),
 	}
 
@@ -1916,28 +1740,23 @@ func (dobot *Dobot) SetTRIGCmd(cmd *TRIGCmd, isQueued bool) (queuedCmdIndex uint
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
 // SetIOMultiplexing 设置IO复用
-func (dobot *Dobot) SetIOMultiplexing(params *IOMultiplexing, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetIOMultiplexing(params *IOMultiplexing) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolIOMultiplexing,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 2),
 	}
 
@@ -1949,53 +1768,23 @@ func (dobot *Dobot) SetIOMultiplexing(params *IOMultiplexing, isQueued bool) (qu
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
-// GetIOMultiplexing 获取IO复用
-func (dobot *Dobot) GetIOMultiplexing(params *IOMultiplexing) error {
-	if params == nil {
-		return errors.New("invalid params: params is nil")
-	}
-
-	message := &Message{
-		Id:       ProtocolIOMultiplexing,
-		RW:       false,
-		IsQueued: false,
-		Params:   []byte{params.Address},
-	}
-
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
-	if err != nil {
-		return err
-	}
-	if len(resp.Params) < 1 {
-		return errors.New("invalid response")
-	}
-
-	params.Multiplex = resp.Params[0]
-	return nil
-}
-
 // SetIODO 设置IO数字输出
-func (dobot *Dobot) SetIODO(params *IODO, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetIODO(params *IODO) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolIODO,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 2),
 	}
 
@@ -2007,78 +1796,23 @@ func (dobot *Dobot) SetIODO(params *IODO, isQueued bool) (queuedCmdIndex uint64,
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
-// GetIODO 获取IO数字输出
-func (dobot *Dobot) GetIODO(params *IODO) error {
-	if params == nil {
-		return errors.New("invalid params: params is nil")
-	}
-
-	message := &Message{
-		Id:       ProtocolIODO,
-		RW:       false,
-		IsQueued: false,
-		Params:   []byte{params.Address},
-	}
-
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
-	if err != nil {
-		return err
-	}
-	if len(resp.Params) < 1 {
-		return errors.New("invalid response")
-	}
-
-	params.Level = resp.Params[0]
-	return nil
-}
-
-// GetIODI 获取IO数字输入
-func (dobot *Dobot) GetIODI(params *IODI) error {
-	if params == nil {
-		return errors.New("invalid params: params is nil")
-	}
-
-	message := &Message{
-		Id:       ProtocolIODI,
-		RW:       false,
-		IsQueued: false,
-		Params:   []byte{params.Address},
-	}
-
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
-	if err != nil {
-		return err
-	}
-	if len(resp.Params) < 1 {
-		return errors.New("invalid response")
-	}
-
-	params.Level = resp.Params[0]
-	return nil
-}
-
 // SetIOPWM 设置IO PWM输出
-func (dobot *Dobot) SetIOPWM(params *IOPWM, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetIOPWM(params *IOPWM) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolIOPWM,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 9),
 	}
 
@@ -2091,79 +1825,23 @@ func (dobot *Dobot) SetIOPWM(params *IOPWM, isQueued bool) (queuedCmdIndex uint6
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
-// GetIOPWM 获取IO PWM输出
-func (dobot *Dobot) GetIOPWM(params *IOPWM) error {
-	if params == nil {
-		return errors.New("invalid params: params is nil")
-	}
-
-	message := &Message{
-		Id:       ProtocolIOPWM,
-		RW:       false,
-		IsQueued: false,
-		Params:   []byte{params.Address},
-	}
-
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
-	if err != nil {
-		return err
-	}
-	if len(resp.Params) < 8 {
-		return errors.New("invalid response")
-	}
-
-	params.Frequency = math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4]))
-	params.DutyCycle = math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[4:8]))
-	return nil
-}
-
-// GetIOADC 获取IO模拟输入
-func (dobot *Dobot) GetIOADC(params *IOADC) error {
-	if params == nil {
-		return errors.New("invalid params: params is nil")
-	}
-
-	message := &Message{
-		Id:       ProtocolIOADC,
-		RW:       false,
-		IsQueued: false,
-		Params:   []byte{params.Address},
-	}
-
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
-	if err != nil {
-		return err
-	}
-	if len(resp.Params) < 2 {
-		return errors.New("invalid response")
-	}
-
-	params.Value = binary.LittleEndian.Uint16(resp.Params[0:2])
-	return nil
-}
-
 // SetEMotor 设置扩展电机
-func (dobot *Dobot) SetEMotor(params *EMotor, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetEMotor(params *EMotor) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
 
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolEMotor,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 6),
 	}
 
@@ -2178,28 +1856,22 @@ func (dobot *Dobot) SetEMotor(params *EMotor, isQueued bool) (queuedCmdIndex uin
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
 // SetEMotorS 设置扩展步进电机
-func (dobot *Dobot) SetEMotorS(params *EMotorS, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetEMotorS(params *EMotorS) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
-
-	// C++实现中强制将isQueued设为true
-	isQueued = true
-
 	message := &Message{
 		Id:       ProtocolEMotorS,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, 10),
 	}
 
@@ -2214,13 +1886,10 @@ func (dobot *Dobot) SetEMotorS(params *EMotorS, isQueued bool) (queuedCmdIndex u
 	if err != nil {
 		return 0, err
 	}
-
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -2522,13 +2191,10 @@ func (dobot *Dobot) GetQueuedCmdMotionFinish() (bool, error) {
 }
 
 // SetPTPPOCmd 设置PTP并行输出命令
-func (dobot *Dobot) SetPTPPOCmd(ptpCmd *PTPCmd, parallelCmd []ParallelOutputCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetPTPPOCmd(ptpCmd *PTPCmd, parallelCmd []ParallelOutputCmd) (queuedCmdIndex uint64, err error) {
 	if ptpCmd == nil {
 		return 0, errors.New("invalid params: ptpCmd is nil")
 	}
-
-	// C++实现中强制将isQueued设为true
-	isQueued = true
 
 	// 计算参数总长度
 	paramsLen := 20 // PTPCmd size
@@ -2540,7 +2206,7 @@ func (dobot *Dobot) SetPTPPOCmd(ptpCmd *PTPCmd, parallelCmd []ParallelOutputCmd,
 	message := &Message{
 		Id:       ProtocolPTPPOCmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, paramsLen),
 	}
 
@@ -2565,23 +2231,18 @@ func (dobot *Dobot) SetPTPPOCmd(ptpCmd *PTPCmd, parallelCmd []ParallelOutputCmd,
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
 // SetPTPPOWithLCmd 设置带L轴的PTP并行输出命令
-func (dobot *Dobot) SetPTPPOWithLCmd(ptpWithLCmd *PTPWithLCmd, parallelCmd []ParallelOutputCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetPTPPOWithLCmd(ptpWithLCmd *PTPWithLCmd, parallelCmd []ParallelOutputCmd) (queuedCmdIndex uint64, err error) {
 	if ptpWithLCmd == nil {
 		return 0, errors.New("invalid params: ptpWithLCmd is nil")
 	}
-
-	// C++实现中强制将isQueued设为true
-	isQueued = true
 
 	// 计算参数总长度
 	paramsLen := 24 // PTPWithLCmd size
@@ -2593,7 +2254,7 @@ func (dobot *Dobot) SetPTPPOWithLCmd(ptpWithLCmd *PTPWithLCmd, parallelCmd []Par
 	message := &Message{
 		Id:       ProtocolPTPPOWithLCmd,
 		RW:       true,
-		IsQueued: isQueued,
+		IsQueued: true,
 		Params:   make([]byte, paramsLen),
 	}
 
@@ -2619,12 +2280,10 @@ func (dobot *Dobot) SetPTPPOWithLCmd(ptpWithLCmd *PTPWithLCmd, parallelCmd []Par
 		return 0, err
 	}
 
-	if isQueued {
-		if len(resp.Params) < 8 {
-			return 0, errors.New("invalid response")
-		}
-		queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
 	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
 }
 
@@ -2718,4 +2377,47 @@ func (dobot *Dobot) GetWIFIPassword() (string, error) {
 		return "", err
 	}
 	return string(resp.Params), nil
+}
+
+// SetLostStepParams 设置丢步参数
+func (dobot *Dobot) SetLostStepParams(threshold float32) (queuedCmdIndex uint64, err error) {
+	message := &Message{
+		Id:       ProtocolLostStepSet,
+		RW:       true,
+		IsQueued: true,
+		Params:   make([]byte, 4),
+	}
+
+	binary.LittleEndian.PutUint32(message.Params[0:4], math.Float32bits(threshold))
+
+	resp, err := dobot.connector.SendMessage(context.Background(), message)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
+	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	return queuedCmdIndex, nil
+}
+
+// SetLostStepCmd 设置丢步命令
+func (dobot *Dobot) SetLostStepCmd() (queuedCmdIndex uint64, err error) {
+	message := &Message{
+		Id:       ProtocolLostStepDetect,
+		RW:       true,
+		IsQueued: true,
+	}
+
+	resp, err := dobot.connector.SendMessage(context.Background(), message)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(resp.Params) < 8 {
+		return 0, errors.New("invalid response")
+	}
+	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
+	return queuedCmdIndex, nil
 }
