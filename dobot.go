@@ -15,11 +15,90 @@ type Dobot struct {
 }
 
 // NewDobot 创建新的Dobot实例
+// @Summary 创建新的机械臂控制实例
+// @Description 初始化并返回一个新的Dobot机械臂控制实例。该实例包含了
+// @Description 所有控制机械臂所需的方法。在使用任何控制功能之前，必须
+// @Description 先创建一个控制实例。
+//
+// @Return *Dobot "返回值说明：
+//   - 返回Dobot实例指针
+//   - 该实例用于后续所有的机械臂控制操作
+//     注意：创建实例后需要调用Connect方法建立连接"
+//
+// @Success 200 {object} *Dobot "返回Dobot实例"
+//
+// @Example
+//
+//	// 创建新的机械臂控制实例
+//	dobot := NewDobot()
+//	if dobot != nil {
+//	    // 创建成功，继续建立连接
+//	    err := dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
+//	    if err != nil {
+//	        log.Fatal("连接失败:", err)
+//	    }
+//	    log.Printf("机械臂控制实例创建并连接成功")
+//	}
 func NewDobot() *Dobot {
 	return &Dobot{connector: &Connector{}}
 }
 
 // ConnectDobot 连接到Dobot设备
+// @Summary 建立与机械臂的通信连接
+// @Description 通过指定的串口和波特率连接到Dobot机械臂。此函数会尝试
+// @Description 打开指定的串口并建立与机械臂的通信连接。连接成功后才能
+// @Description 执行后续的控制命令。如果连接失败，需要检查串口设备是否
+// @Description 正确以及波特率设置是否匹配。
+//
+// @Param ctx context.Context true "上下文对象：
+//   - 用于控制连接超时和取消操作
+//   - 可以使用 context.Background() 创建"
+//
+// @Param portName string true "串口设备名称：
+//   - Windows系统：'COM1', 'COM2', ...
+//   - Linux系统：'/dev/ttyUSB0', '/dev/ttyACM0', ...
+//   - macOS系统：'/dev/cu.usbserial-*'
+//     注意：确保有正确的串口访问权限"
+//
+// @Param baudrate uint32 true "串口通信波特率：
+//   - 标准值：115200
+//   - 必须与机械臂设置匹配
+//     注意：不正确的波特率会导致通信错误"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "连接成功"
+// @Failure 400 {error} "连接失败，可能的错误：
+//   - 串口不存在
+//   - 串口被占用
+//   - 波特率不支持
+//   - 权限不足
+//   - 通信超时
+//   - 设备未就绪"
+//
+// @Example
+//
+//	// 连接到机械臂
+//	ctx := context.Background()
+//	err := dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
+//	if err != nil {
+//	    log.Printf("连接失败: %v", err)
+//	    // 检查串口设备和权限
+//	    return
+//	}
+//	log.Printf("成功连接到机械臂")
+//
+//	// 使用带超时的连接
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//	defer cancel()
+//	err = dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
+//	if err != nil {
+//	    if err == context.DeadlineExceeded {
+//	        log.Printf("连接超时")
+//	    } else {
+//	        log.Printf("连接失败: %v", err)
+//	    }
+//	    return
+//	}
 func (dobot *Dobot) Connect(ctx context.Context, portName string, baudrate uint32) error {
 	err := dobot.connector.Open(ctx, portName, baudrate)
 	if err != nil {
@@ -1153,39 +1232,49 @@ func (dobot *Dobot) GetHHTTrigOutput() (bool, error) {
 }
 
 // SetEndEffectorParams 设置末端执行器参数
-// @Summary 设置末端执行器参数
-// @Description 设置机械臂末端执行器的基本参数。末端执行器是机械臂的工作工具，
-// @Description 如夹爪、吸盘等。正确设置这些参数对确保末端执行器的精确控制
-// @Description 和安全运行至关重要。
-// @Param params *EndEffectorParams true "末端执行器参数结构体，包含：
-//   - xBias: X轴偏移量，单位mm
-//   - yBias: Y轴偏移量，单位mm
-//   - zBias: Z轴偏移量，单位mm
-//   - 注意：偏移量是相对于机械臂标准工具坐标系的补偿值"
+// @Summary 设置机械臂末端执行器参数
+// @Description 设置机械臂末端执行器的坐标偏移量参数。这些参数用于定义
+// @Description 末端执行器相对于机械臂末端法兰的位置偏移，确保机械臂能够
+// @Description 准确定位到目标位置。
+//
+// @Param params *EndEffectorParams true "末端执行器参数：
+//   - xBias: X轴偏移量（单位：mm）
+//   - yBias: Y轴偏移量（单位：mm）
+//   - zBias: Z轴偏移量（单位：mm）
+//     注意：偏移量基于末端法兰坐标系"
 //
 // @Param isQueued bool true "是否加入指令队列：
-//   - true: 将指令加入队列，按顺序执行
-//   - false: 立即执行该指令"
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保参数设置顺序"
 //
-// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
 // @Return error "错误信息"
-// @Success 200 {number} uint64 "返回指令队列索引"
+// @Success 200 {number} uint64 "返回指令索引"
 // @Failure 400 {error} "设置失败，可能的错误：
 //   - 参数无效
 //   - 偏移量超出范围
+//   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
 //
 // @Example
 //
+//	// 设置末端执行器偏移量
 //	params := &EndEffectorParams{
-//	    xBias: 0,      // X轴无偏移
-//	    yBias: 10.0,   // Y轴偏移10mm
-//	    zBias: 20.0,   // Z轴偏移20mm
+//	    XBias: 0,    // X轴无偏移
+//	    YBias: 20,   // Y轴偏移20mm
+//	    ZBias: 30,   // Z轴偏移30mm
 //	}
 //	index, err := dobot.SetEndEffectorParams(params, true)
 //	if err != nil {
 //	    log.Printf("设置末端执行器参数失败: %v", err)
+//	    return
+//	}
+//	log.Printf("末端执行器参数设置成功，指令索引: %d", index)
 //	} else {
 //	    log.Printf("设置成功，指令索引: %d", index)
 //	}
@@ -1262,48 +1351,54 @@ func (dobot *Dobot) GetEndEffectorParams() (*EndEffectorParams, error) {
 	return params, nil
 }
 
-// SetEndEffectorLaser 设置末端执行器激光
-// @Summary 设置末端激光器状态
-// @Description 控制机械臂末端激光器的开关状态。激光器可用于切割、雕刻、标记等
-// @Description 工作。使用激光器时需要特别注意安全，确保激光不会对人员或设备
-// @Description 造成伤害。建议在使用完毕后立即关闭激光器。
-// @Param enableCtrl bool true "激光器控制使能：
+// SetEndEffectorLaser 设置末端激光状态
+// @Summary 设置机械臂末端激光器的工作状态
+// @Description 控制机械臂末端激光器的开关状态和使能状态。激光器可用于
+// @Description 激光雕刻、切割、标记等应用。使用前需要确保激光器已正确
+// @Description 安装并配置。
+//
+// @Param enableCtrl bool true "使能控制：
 //   - true: 启用激光器控制
 //   - false: 禁用激光器控制
-//   - 注意：必须先启用控制才能操作激光器"
+//     注意：必须先使能才能控制激光器"
 //
-// @Param on bool true "激光器开关状态：
-//   - true: 打开激光
-//   - false: 关闭激光
-//   - 注意：只有在控制使能时才有效"
+// @Param on bool true "激光器开关：
+//   - true: 打开激光器
+//   - false: 关闭激光器
+//     注意：激光器打开时要注意安全"
 //
 // @Param isQueued bool true "是否加入指令队列：
-//   - true: 将指令加入队列，按顺序执行
-//   - false: 立即执行该指令
-//   - 建议使用队列模式以确保操作顺序"
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保控制顺序"
 //
-// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
 // @Return error "错误信息"
-// @Success 200 {number} uint64 "返回指令队列索引"
+// @Success 200 {number} uint64 "返回指令索引"
 // @Failure 400 {error} "设置失败，可能的错误：
-//   - 激光器未连接或未识别
-//   - 控制未使能
-//   - 安全锁定状态
+//   - 激光器未安装
+//   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
 //
 // @Example
 //
-//	// 启用激光器控制并打开激光
+//	// 启用并打开激光器
 //	index, err := dobot.SetEndEffectorLaser(true, true, true)
 //	if err != nil {
-//	    log.Printf("设置激光器失败: %v", err)
-//	} else {
-//	    log.Printf("激光器已开启，指令索引: %d", index)
-//	    // 执行激光操作（建议添加安全延时）
-//	    time.Sleep(2 * time.Second)
-//	    // 完成后关闭激光
-//	    _, err = dobot.SetEndEffectorLaser(true, false, true)
+//	    log.Printf("设置激光器状态失败: %v", err)
+//	    return
+//	}
+//	log.Printf("激光器已启用并打开，指令索引: %d", index)
+//
+//	// 等待一段时间后关闭激光器
+//	time.Sleep(5 * time.Second)
+//	index, err = dobot.SetEndEffectorLaser(true, false, true)
+//	if err != nil {
+//	    log.Printf("关闭激光器失败: %v", err)
 //	}
 func (dobot *Dobot) SetEndEffectorLaser(enableCtrl bool, on bool, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
@@ -1330,12 +1425,47 @@ func (dobot *Dobot) SetEndEffectorLaser(enableCtrl bool, on bool, isQueued bool)
 	return queuedCmdIndex, nil
 }
 
-// GetEndEffectorLaser 获取末端执行器激光状态
-// @Summary 获取末端激光器状态
-// @Description 获取当前末端激光器的控制和开关状态
-// @Success 200 {boolean} isCtrlEnabled "是否使能激光器控制"
-// @Success 200 {boolean} isOn "激光器是否开启"
-// @Failure 400 {object} error "获取激光器状态失败时返回错误信息"
+// GetEndEffectorLaser 获取末端激光状态
+// @Summary 获取机械臂末端激光器的工作状态
+// @Description 获取末端激光器的当前使能状态和开关状态。通过此功能可以
+// @Description 确认激光器是否已正确启用和工作。在执行激光相关操作前，
+// @Description 建议先检查激光器状态。
+//
+// @Return bool "使能状态：
+//   - true: 激光器控制已启用
+//   - false: 激光器控制已禁用"
+//
+// @Return bool "开关状态：
+//   - true: 激光器已打开
+//   - false: 激光器已关闭"
+//
+// @Return error "错误信息"
+// @Success 200 {object} struct{isCtrlEnabled,isOn bool} "返回激光器状态"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 激光器未安装
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取激光器状态
+//	enabled, on, err := dobot.GetEndEffectorLaser()
+//	if err != nil {
+//	    log.Printf("获取激光器状态失败: %v", err)
+//	    return
+//	}
+//	log.Printf("激光器状态：")
+//	if enabled {
+//	    log.Printf("  控制已启用")
+//	    if on {
+//	        log.Printf("  当前已打开")
+//	    } else {
+//	        log.Printf("  当前已关闭")
+//	    }
+//	} else {
+//	    log.Printf("  控制未启用")
+//	}
 func (dobot *Dobot) GetEndEffectorLaser() (isCtrlEnabled bool, isOn bool, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorLaser,
@@ -1352,14 +1482,56 @@ func (dobot *Dobot) GetEndEffectorLaser() (isCtrlEnabled bool, isOn bool, err er
 	return resp.Params[0] != 0, resp.Params[1] != 0, nil
 }
 
-// SetEndEffectorSuctionCup 设置末端执行器吸盘
-// @Summary 设置末端吸盘
-// @Description 控制末端吸盘的使能和吸取状态
-// @Param enableCtrl query bool true "是否启用吸盘控制"
-// @Param suck query bool true "吸盘状态，true为吸附"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint64 "返回命令队列索引"
-// @Failure 400 {object} error "设置吸盘状态失败时返回错误信息"
+// SetEndEffectorSuctionCup 设置末端吸盘状态
+// @Summary 设置机械臂末端吸盘的工作状态
+// @Description 控制机械臂末端吸盘的使能和吸附状态。吸盘是一种常用的
+// @Description 末端执行器，用于吸附和搬运物体。使用前需要确保吸盘已
+// @Description 正确安装并连接气源。
+//
+// @Param enableCtrl bool true "使能控制：
+//   - true: 启用吸盘控制
+//   - false: 禁用吸盘控制
+//     注意：必须先使能才能控制吸盘"
+//
+// @Param suck bool true "吸盘状态：
+//   - true: 启动吸附
+//   - false: 停止吸附
+//     注意：确保物体重量在吸盘负载范围内"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保控制顺序"
+//
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 吸盘未安装
+//   - 气源压力不足
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 启用并打开吸盘
+//	index, err := dobot.SetEndEffectorSuctionCup(true, true, true)
+//	if err != nil {
+//	    log.Printf("设置吸盘状态失败: %v", err)
+//	    return
+//	}
+//	log.Printf("吸盘已启用并开始吸附，指令索引: %d", index)
+//
+//	// 等待一段时间后关闭吸盘
+//	time.Sleep(2 * time.Second)
+//	index, err = dobot.SetEndEffectorSuctionCup(true, false, true)
+//	if err != nil {
+//	    log.Printf("关闭吸盘失败: %v", err)
+//	}
 func (dobot *Dobot) SetEndEffectorSuctionCup(enableCtrl bool, suck bool, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorSuctionCup,
@@ -1386,11 +1558,46 @@ func (dobot *Dobot) SetEndEffectorSuctionCup(enableCtrl bool, suck bool, isQueue
 }
 
 // GetEndEffectorSuctionCup 获取末端执行器吸盘状态
-// @Summary 获取末端吸盘状态
-// @Description 获取末端吸盘的控制及吸附状态
-// @Success 200 {boolean} isCtrlEnabled "是否使能吸盘控制"
-// @Success 200 {boolean} isSucked "吸盘是否已吸取"
-// @Failure 400 {object} error "获取吸盘状态失败时返回错误信息"
+// @Summary 获取末端执行器吸盘的工作状态
+// @Description 获取末端吸盘的当前使能状态和吸附状态。通过此功能可以
+// @Description 确认吸盘是否已正确启用和工作。在执行吸附相关操作前，
+// @Description 建议先检查吸盘状态。
+//
+// @Return bool "使能状态：
+//   - true: 吸盘控制已启用
+//   - false: 吸盘控制已禁用"
+//
+// @Return bool "吸附状态：
+//   - true: 正在吸附
+//   - false: 未吸附"
+//
+// @Return error "错误信息"
+// @Success 200 {object} struct{isCtrlEnabled,isSucked bool} "返回吸盘状态"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 吸盘未安装
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取吸盘状态
+//	enabled, sucking, err := dobot.GetEndEffectorSuctionCup()
+//	if err != nil {
+//	    log.Printf("获取吸盘状态失败: %v", err)
+//	    return
+//	}
+//	log.Printf("吸盘状态：")
+//	if enabled {
+//	    log.Printf("  控制已启用")
+//	    if sucking {
+//	        log.Printf("  当前正在吸附")
+//	    } else {
+//	        log.Printf("  当前未吸附")
+//	    }
+//	} else {
+//	    log.Printf("  控制未启用")
+//	}
 func (dobot *Dobot) GetEndEffectorSuctionCup() (isCtrlEnabled bool, isSucked bool, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorSuctionCup,
@@ -1408,47 +1615,53 @@ func (dobot *Dobot) GetEndEffectorSuctionCup() (isCtrlEnabled bool, isSucked boo
 }
 
 // SetEndEffectorGripper 设置末端夹爪状态
-// @Summary 设置末端夹爪的控制和夹持状态
-// @Description 控制机械臂末端夹爪的使能和夹持状态。夹爪可用于抓取、搬运
-// @Description 物品。使用夹爪时需要注意物品尺寸和重量不要超过夹爪规格，并确保
-// @Description 夹持力度适中。建议在完成操作后将夹爪恢复到安全位置。
+// @Summary 设置机械臂末端夹爪的工作状态
+// @Description 控制机械臂末端夹爪的使能和夹持状态。夹爪是一种常用的
+// @Description 末端执行器，用于抓取和搬运物体。使用前需要确保夹爪已
+// @Description 正确安装并配置。
 //
-// @Param enableCtrl bool true "夹爪控制使能：
+// @Param enableCtrl bool true "使能控制：
 //   - true: 启用夹爪控制
 //   - false: 禁用夹爪控制
-//   - 注意：必须先启用控制才能操作夹爪"
+//     注意：必须先使能才能控制夹爪"
 //
 // @Param grip bool true "夹爪状态：
 //   - true: 闭合夹爪
 //   - false: 打开夹爪
-//   - 注意：只有在控制使能时才有效"
+//     注意：确保物体尺寸在夹爪范围内"
 //
 // @Param isQueued bool true "是否加入指令队列：
-//   - true: 将指令加入队列，按顺序执行
-//   - false: 立即执行该指令
-//   - 建议使用队列模式以确保操作顺序"
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保控制顺序"
 //
-// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
 // @Return error "错误信息"
-// @Success 200 {number} uint64 "返回指令队列索引"
+// @Success 200 {number} uint64 "返回指令索引"
 // @Failure 400 {error} "设置失败，可能的错误：
-//   - 夹爪未连接或未识别
-//   - 控制未使能
+//   - 夹爪未安装
+//   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
 //
 // @Example
 //
-//	// 启用夹爪控制并闭合夹爪
+//	// 启用并闭合夹爪
 //	index, err := dobot.SetEndEffectorGripper(true, true, true)
 //	if err != nil {
-//	    log.Printf("设置夹爪失败: %v", err)
-//	} else {
-//	    log.Printf("夹爪已闭合，指令索引: %d", index)
-//	    // 执行夹持操作（建议添加适当延时确保夹持稳定）
-//	    time.Sleep(500 * time.Millisecond)
-//	    // 移动物品后打开夹爪
-//	    _, err = dobot.SetEndEffectorGripper(true, false, true)
+//	    log.Printf("设置夹爪状态失败: %v", err)
+//	    return
+//	}
+//	log.Printf("夹爪已启用并闭合，指令索引: %d", index)
+//
+//	// 等待一段时间后打开夹爪
+//	time.Sleep(2 * time.Second)
+//	index, err = dobot.SetEndEffectorGripper(true, false, true)
+//	if err != nil {
+//	    log.Printf("打开夹爪失败: %v", err)
 //	}
 func (dobot *Dobot) SetEndEffectorGripper(enableCtrl bool, grip bool, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
@@ -1558,10 +1771,15 @@ func (dobot *Dobot) GetEndEffectorGripper() (isCtrlEnabled bool, isGripped bool,
 //	index, err := dobot.SetArmOrientation(ArmOrientation_LeftyArmOrientation, true)
 //	if err != nil {
 //	    log.Printf("设置机械臂方向失败: %v", err)
-//	} else {
-//	    log.Printf("正在切换到左手方向，指令索引: %d", index)
-//	    // 等待切换完成
-//	    time.Sleep(2 * time.Second)
+//	    return
+//	}
+//	log.Printf("正在切换到左手方向，指令索引: %d", index)
+//
+//	// 等待切换完成
+//	time.Sleep(2 * time.Second)
+//	orientation, _ := dobot.GetArmOrientation()
+//	if orientation == ArmOrientation_LeftyArmOrientation {
+//	    log.Printf("机械臂方向切换成功")
 //	}
 func (dobot *Dobot) SetArmOrientation(armOrientation ArmOrientation, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
@@ -1606,12 +1824,12 @@ func (dobot *Dobot) SetArmOrientation(armOrientation ArmOrientation, isQueued bo
 //	orientation, err := dobot.GetArmOrientation()
 //	if err != nil {
 //	    log.Printf("获取机械臂方向失败: %v", err)
+//	    return
+//	}
+//	if orientation == ArmOrientation_LeftyArmOrientation {
+//	    log.Printf("当前为左手方向")
 //	} else {
-//	    if orientation == ArmOrientation_LeftyArmOrientation {
-//	        log.Printf("当前为左手方向")
-//	    } else {
-//	        log.Printf("当前为右手方向")
-//	    }
+//	    log.Printf("当前为右手方向")
 //	}
 func (dobot *Dobot) GetArmOrientation() (ArmOrientation, error) {
 	message := &Message{
@@ -1629,46 +1847,48 @@ func (dobot *Dobot) GetArmOrientation() (ArmOrientation, error) {
 	return ArmOrientation(resp.Params[0]), nil
 }
 
-// SetJOGJointParams 设置JOG关节参数
-// @Summary 设置JOG模式下的关节运动参数
-// @Description 设置机械臂在JOG（点动）模式下各关节的运动参数。这些参数
-// @Description 包括各关节的速度和加速度，直接影响机械臂在手动点动时的运动
-// @Description 特性。合理的参数设置可以确保运动平稳且可控。
+// SetJOGJointParams 设置关节点动参数
+// @Summary 设置机械臂关节点动运动的速度和加速度参数
+// @Description 设置机械臂在JOG模式下各关节运动的速度和加速度参数。
+// @Description 这些参数影响机械臂在手动点动模式下的运动特性。合适的
+// @Description 参数设置可以确保运动平稳且可控。
 //
-// @Param params *JOGJointParams true "JOG关节运动参数：
-//   - velocity: 各关节速度数组[4]float32（单位：°/s）
-//   - acceleration: 各关节加速度数组[4]float32（单位：°/s²）
-//     注意：参数设置不合理可能导致运动不稳定"
+// @Param params *JOGJointParams true "关节点动参数：
+//   - velocity: 各关节速度数组（单位：°/s）
+//   - acceleration: 各关节加速度数组（单位：°/s²）
+//     注意：参数必须在机械臂规格范围内"
 //
 // @Param isQueued bool true "是否加入指令队列：
-//   - true: 将指令加入队列，按顺序执行
-//   - false: 立即执行该指令
-//   - 建议使用队列模式以确保参数设置顺序"
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保参数设置顺序"
 //
-// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
 // @Return error "错误信息"
-// @Success 200 {number} uint64 "返回指令队列索引"
+// @Success 200 {number} uint64 "返回指令索引"
 // @Failure 400 {error} "设置失败，可能的错误：
-//   - 参数为空
-//   - 参数值超出范围
+//   - 参数无效
+//   - 参数超出范围
 //   - 机械臂被锁定
-//   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
 //
 // @Example
 //
-//	// 设置JOG关节运动参数
+//	// 设置关节点动参数
 //	params := &JOGJointParams{
-//	    Velocity:     [4]float32{10, 10, 10, 10},      // 各关节速度10°/s
-//	    Acceleration: [4]float32{50, 50, 50, 50},      // 各关节加速度50°/s²
+//	    Velocity:     [4]float32{10, 10, 10, 10},  // 各关节速度10°/s
+//	    Acceleration: [4]float32{50, 50, 50, 50},  // 各关节加速度50°/s²
 //	}
 //	index, err := dobot.SetJOGJointParams(params, true)
 //	if err != nil {
-//	    log.Printf("设置JOG关节参数失败: %v", err)
-//	} else {
-//	    log.Printf("JOG关节参数设置成功，指令索引: %d", index)
+//	    log.Printf("设置关节点动参数失败: %v", err)
+//	    return
 //	}
+//	log.Printf("关节点动参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetJOGJointParams(params *JOGJointParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -1692,38 +1912,36 @@ func (dobot *Dobot) SetJOGJointParams(params *JOGJointParams, isQueued bool) (qu
 	return queuedCmdIndex, nil
 }
 
-// GetJOGJointParams 获取JOG关节参数
-// @Summary 获取JOG模式下的关节运动参数
-// @Description 获取机械臂在JOG（点动）模式下各关节的当前运动参数设置。
-// @Description 可用于确认当前的运动参数配置，或在修改参数前获取原始值作为
-// @Description 参考。返回的参数包括各关节的速度和加速度设置。
+// GetJOGJointParams 获取关节点动参数
+// @Summary 获取机械臂关节点动运动的速度和加速度参数
+// @Description 获取机械臂在JOG模式下各关节运动的当前速度和加速度参数。
+// @Description 通过这些参数可以了解机械臂在手动点动模式下的运动特性
+// @Description 设置。
 //
-// @Return *JOGJointParams "JOG关节运动参数：
-//   - velocity: 各关节速度数组[4]float32（单位：°/s）
-//   - acceleration: 各关节加速度数组[4]float32（单位：°/s²）"
+// @Return *JOGJointParams "关节点动参数：
+//   - velocity: 各关节速度数组（单位：°/s）
+//   - acceleration: 各关节加速度数组（单位：°/s²）
+//     注意：返回当前实际设置的参数值"
 //
 // @Return error "错误信息"
-// @Success 200 {object} *JOGJointParams "返回JOG关节运动参数结构体"
+// @Success 200 {object} *JOGJointParams "返回关节点动参数结构体"
 // @Failure 400 {error} "获取失败，可能的错误：
 //   - 通信错误
 //   - 设备未连接
-//   - 响应数据无效
-//   - 数据解析错误"
+//   - 响应数据无效"
 //
 // @Example
 //
-//	// 获取当前JOG关节运动参数
+//	// 获取关节点动参数
 //	params, err := dobot.GetJOGJointParams()
 //	if err != nil {
-//	    log.Printf("获取JOG关节参数失败: %v", err)
-//	} else {
-//	    log.Printf("当前JOG关节参数：")
-//	    log.Printf("  速度: %.2f, %.2f, %.2f, %.2f °/s",
-//	        params.Velocity[0], params.Velocity[1],
-//	        params.Velocity[2], params.Velocity[3])
-//	    log.Printf("  加速度: %.2f, %.2f, %.2f, %.2f °/s²",
-//	        params.Acceleration[0], params.Acceleration[1],
-//	        params.Acceleration[2], params.Acceleration[3])
+//	    log.Printf("获取关节点动参数失败: %v", err)
+//	    return
+//	}
+//	log.Printf("当前关节点动参数：")
+//	for i := 0; i < 4; i++ {
+//	    log.Printf("  关节%d - 速度: %.1f°/s, 加速度: %.1f°/s²",
+//	        i+1, params.Velocity[i], params.Acceleration[i])
 //	}
 func (dobot *Dobot) GetJOGJointParams() (*JOGJointParams, error) {
 	message := &Message{
@@ -1746,61 +1964,52 @@ func (dobot *Dobot) GetJOGJointParams() (*JOGJointParams, error) {
 	return params, nil
 }
 
-// SetJOGCoordinateParams 设置JOG坐标参数
-// @Summary 设置JOG模式下的笛卡尔坐标运动参数
-// @Description 设置机械臂在JOG（点动）模式下笛卡尔坐标系中的运动参数。
-// @Description 这些参数包括X、Y、Z轴的速度和加速度，以及姿态（R轴）的运动
-// @Description 参数，直接影响机械臂在手动点动时的运动特性。
+// SetJOGCoordinateParams 设置坐标点动参数
+// @Summary 设置机械臂坐标点动运动的速度和加速度参数
+// @Description 设置机械臂在JOG模式下笛卡尔坐标系运动的速度和加速度参数。
+// @Description 这些参数影响机械臂在手动点动模式下的运动特性。合适的
+// @Description 参数设置可以确保运动平稳且可控。
 //
-// @Param params *JOGCoordinateParams true "JOG坐标运动参数：
-//   - velocity: 各轴速度数组[4]float32
-//   - [0-2]: X、Y、Z轴速度（单位：mm/s）
-//   - [3]: R轴速度（单位：°/s）
-//   - acceleration: 各轴加速度数组[4]float32
-//   - [0-2]: X、Y、Z轴加速度（单位：mm/s²）
-//   - [3]: R轴加速度（单位：°/s²）
-//     注意：参数设置不合理可能导致运动不稳定"
+// @Param params *JOGCoordinateParams true "坐标点动参数：
+//   - velocity: 各轴速度数组（X/Y/Z单位：mm/s，R单位：°/s）
+//   - acceleration: 各轴加速度数组（X/Y/Z单位：mm/s²，R单位：°/s²）
+//     注意：参数必须在机械臂规格范围内"
 //
 // @Param isQueued bool true "是否加入指令队列：
-//   - true: 将指令加入队列，按顺序执行
-//   - false: 立即执行该指令
-//   - 建议使用队列模式以确保参数设置顺序"
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保参数设置顺序"
 //
-// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
 // @Return error "错误信息"
-// @Success 200 {number} uint64 "返回指令队列索引"
+// @Success 200 {number} uint64 "返回指令索引"
 // @Failure 400 {error} "设置失败，可能的错误：
-//   - 参数为空
-//   - 参数值超出范围
+//   - 参数无效
+//   - 参数超出范围
 //   - 机械臂被锁定
-//   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
 //
 // @Example
 //
-//	// 设置JOG坐标运动参数
+//	// 设置坐标点动参数
 //	params := &JOGCoordinateParams{
-//	    Velocity: [4]float32{
-//	        50, 50, 50,  // XYZ轴速度50mm/s
-//	        30,          // R轴速度30°/s
-//	    },
-//	    Acceleration: [4]float32{
-//	        100, 100, 100,  // XYZ轴加速度100mm/s²
-//	        50,             // R轴加速度50°/s²
-//	    },
+//	    Velocity:     [4]float32{100, 100, 100, 50},  // XYZ速度100mm/s，R速度50°/s
+//	    Acceleration: [4]float32{500, 500, 500, 200}, // XYZ加速度500mm/s²，R加速度200°/s²
 //	}
 //	index, err := dobot.SetJOGCoordinateParams(params, true)
 //	if err != nil {
-//	    log.Printf("设置JOG坐标参数失败: %v", err)
-//	} else {
-//	    log.Printf("JOG坐标参数设置成功，指令索引: %d", index)
+//	    log.Printf("设置坐标点动参数失败: %v", err)
+//	    return
 //	}
+//	log.Printf("坐标点动参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetJOGCoordinateParams(params *JOGCoordinateParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
-
 	message := &Message{
 		Id:       ProtocolJOGCoordinateParams,
 		RW:       true,
@@ -1809,12 +2018,10 @@ func (dobot *Dobot) SetJOGCoordinateParams(params *JOGCoordinateParams, isQueued
 	writer := &bytes.Buffer{}
 	binary.Write(writer, binary.LittleEndian, params)
 	message.Params = writer.Bytes()
-
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
 	}
-
 	if len(resp.Params) < 8 {
 		return 0, errors.New("invalid response")
 	}
@@ -1822,42 +2029,42 @@ func (dobot *Dobot) SetJOGCoordinateParams(params *JOGCoordinateParams, isQueued
 	return queuedCmdIndex, nil
 }
 
-// GetJOGCoordinateParams 获取JOG坐标参数
-// @Summary 获取JOG模式下的笛卡尔坐标运动参数
-// @Description 获取机械臂在JOG（点动）模式下笛卡尔坐标系中的当前运动参数
-// @Description 设置。可用于确认当前的运动参数配置，或在修改参数前获取原始
-// @Description 值作为参考。返回的参数包括各轴的速度和加速度设置。
+// GetJOGCoordinateParams 获取坐标点动参数
+// @Summary 获取机械臂坐标点动运动的速度和加速度参数
+// @Description 获取机械臂在JOG模式下笛卡尔坐标系运动的当前速度和加速度参数。
+// @Description 通过这些参数可以了解机械臂在手动点动模式下的运动特性
+// @Description 设置。
 //
-// @Return *JOGCoordinateParams "JOG坐标运动参数：
-//   - velocity: 各轴速度数组[4]float32
-//   - [0-2]: X、Y、Z轴速度（单位：mm/s）
-//   - [3]: R轴速度（单位：°/s）
-//   - acceleration: 各轴加速度数组[4]float32
-//   - [0-2]: X、Y、Z轴加速度（单位：mm/s²）
-//   - [3]: R轴加速度（单位：°/s²）"
+// @Return *JOGCoordinateParams "坐标点动参数：
+//   - velocity: 各轴速度数组（X/Y/Z单位：mm/s，R单位：°/s）
+//   - acceleration: 各轴加速度数组（X/Y/Z单位：mm/s²，R单位：°/s²）
+//     注意：返回当前实际设置的参数值"
 //
 // @Return error "错误信息"
-// @Success 200 {object} *JOGCoordinateParams "返回JOG坐标运动参数结构体"
+// @Success 200 {object} *JOGCoordinateParams "返回坐标点动参数结构体"
 // @Failure 400 {error} "获取失败，可能的错误：
 //   - 通信错误
 //   - 设备未连接
-//   - 响应数据无效
-//   - 数据解析错误"
+//   - 响应数据无效"
 //
 // @Example
 //
-//	// 获取当前JOG坐标运动参数
+//	// 获取坐标点动参数
 //	params, err := dobot.GetJOGCoordinateParams()
 //	if err != nil {
-//	    log.Printf("获取JOG坐标参数失败: %v", err)
-//	} else {
-//	    log.Printf("当前JOG坐标参数：")
-//	    log.Printf("  XYZ轴速度: %.2f, %.2f, %.2f mm/s",
-//	        params.Velocity[0], params.Velocity[1], params.Velocity[2])
-//	    log.Printf("  R轴速度: %.2f °/s", params.Velocity[3])
-//	    log.Printf("  XYZ轴加速度: %.2f, %.2f, %.2f mm/s²",
-//	        params.Acceleration[0], params.Acceleration[1], params.Acceleration[2])
-//	    log.Printf("  R轴加速度: %.2f °/s²", params.Acceleration[3])
+//	    log.Printf("获取坐标点动参数失败: %v", err)
+//	    return
+//	}
+//	log.Printf("当前坐标点动参数：")
+//	axes := []string{"X", "Y", "Z", "R"}
+//	for i, axis := range axes {
+//	    if i < 3 {
+//	        log.Printf("  %s轴 - 速度: %.1fmm/s, 加速度: %.1fmm/s²",
+//	            axis, params.Velocity[i], params.Acceleration[i])
+//	    } else {
+//	        log.Printf("  %s轴 - 速度: %.1f°/s, 加速度: %.1f°/s²",
+//	            axis, params.Velocity[i], params.Acceleration[i])
+//	    }
 //	}
 func (dobot *Dobot) GetJOGCoordinateParams() (*JOGCoordinateParams, error) {
 	message := &Message{
