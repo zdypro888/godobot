@@ -3159,13 +3159,50 @@ func (dobot *Dobot) SetIOPWM(params *IOPWM, isQueued bool) (queuedCmdIndex uint6
 	return queuedCmdIndex, nil
 }
 
-// SetEMotor 设置扩展电机
-// @Summary 设置电机参数
-// @Description 通过EMotor结构体设置单个电机的控制参数
-// @Param params body *EMotor true "电机参数结构体"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint8 "返回命令队列索引"
-// @Failure 400 {object} error "设置电机参数失败时返回错误信息"
+// SetEMotor 设置扩展电机参数
+// @Summary 设置扩展电机的控制参数
+// @Description 控制机械臂扩展接口上连接的电机。可以设置电机的运行模式、
+// @Description 速度、加速度等参数。扩展电机可用于传送带、转盘等外部设备
+// @Description 的驱动控制。
+//
+// @Param params *EMotor true "扩展电机参数：
+//   - index: 电机索引（从0开始）
+//   - enabled: 是否使能电机
+//   - speed: 电机速度（单位取决于电机类型）
+//   - direction: 旋转方向（0:正向，1:反向）
+//     注意：参数设置需要与实际电机规格相匹配"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 将指令加入队列，按顺序执行
+//   - false: 立即执行该指令
+//   - 建议使用队列模式以确保控制顺序"
+//
+// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数为空
+//   - 电机索引无效
+//   - 速度超出范围
+//   - 电机未连接
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置电机0正向运行
+//	params := &EMotor{
+//	    Index:     0,     // 电机0
+//	    Enabled:   true,  // 使能电机
+//	    Speed:     1000,  // 设置速度
+//	    Direction: 0,     // 正向旋转
+//	}
+//	index, err := dobot.SetEMotor(params, true)
+//	if err != nil {
+//	    log.Printf("设置扩展电机失败: %v", err)
+//	} else {
+//	    log.Printf("扩展电机设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetEMotor(params *EMotor, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -3193,13 +3230,55 @@ func (dobot *Dobot) SetEMotor(params *EMotor, isQueued bool) (queuedCmdIndex uin
 	return queuedCmdIndex, nil
 }
 
-// SetEMotorS 设置扩展步进电机
-// @Summary 设置电机S参数
-// @Description 通过EMotorS结构体同时设置多个电机的参数
-// @Param params body *EMotorS true "电机S参数结构体"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint8 "返回命令队列索引"
-// @Failure 400 {object} error "设置电机S参数失败时返回错误信息"
+// SetEMotorS 设置扩展步进电机参数
+// @Summary 设置多个扩展步进电机的控制参数
+// @Description 同时控制多个连接在机械臂扩展接口上的步进电机。可以批量设置
+// @Description 电机的使能状态、速度、方向等参数。这种批量设置方式适用于需要
+// @Description 多个电机协同工作的场合。
+//
+// @Param params *EMotorS true "扩展步进电机参数：
+//   - count: 要控制的电机数量
+//   - index[8]: 电机索引数组（从0开始）
+//   - enabled[8]: 电机使能状态数组
+//   - speed[8]: 电机速度数组
+//   - direction[8]: 电机方向数组（0:正向，1:反向）
+//     注意：
+//   - 数组长度固定为8，未使用的位置填0
+//   - count必须小于等于8"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 将指令加入队列，按顺序执行
+//   - false: 立即执行该指令
+//   - 建议使用队列模式以确保控制顺序"
+//
+// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数为空
+//   - 电机数量无效
+//   - 电机索引无效
+//   - 速度超出范围
+//   - 电机未连接
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 同时设置两个步进电机
+//	params := &EMotorS{
+//	    Count: 2,                    // 控制2个电机
+//	    Index:     [8]int{0, 1},     // 电机0和1
+//	    Enabled:   [8]bool{true, true},
+//	    Speed:     [8]int{1000, 1000},
+//	    Direction: [8]int{0, 0},      // 都设为正向
+//	}
+//	index, err := dobot.SetEMotorS(params, true)
+//	if err != nil {
+//	    log.Printf("设置步进电机失败: %v", err)
+//	} else {
+//	    log.Printf("步进电机设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetEMotorS(params *EMotorS, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -3225,13 +3304,42 @@ func (dobot *Dobot) SetEMotorS(params *EMotorS, isQueued bool) (queuedCmdIndex u
 }
 
 // SetColorSensor 设置颜色传感器
-// @Summary 设置颜色传感器
-// @Description 根据传入的enable、colorPort和version设置颜色传感器状态
-// @Param enable query bool true "是否启用颜色传感器"
-// @Param colorPort query ColorPort true "颜色传感器端口"
-// @Param version query uint8 true "传感器版本号"
-// @Success 200 {string} "设置成功返回空字符串"
-// @Failure 400 {object} error "设置颜色传感器失败时返回错误信息"
+// @Summary 设置机械臂颜色传感器的工作状态
+// @Description 配置机械臂上的颜色传感器。颜色传感器可用于识别和分类不同
+// @Description 颜色的物体，在分拣、质检等应用中非常有用。使用前需要正确
+// @Description 连接传感器并设置其工作参数。
+//
+// @Param enable bool true "传感器使能状态：
+//   - true: 启用传感器
+//   - false: 禁用传感器"
+//
+// @Param colorPort ColorPort true "传感器端口：
+//   - ColorPort_PORT1: 端口1
+//   - ColorPort_PORT2: 端口2
+//     注意：具体可用端口取决于机械臂型号"
+//
+// @Param version uint8 true "传感器版本号：
+//   - 用于适配不同版本的传感器
+//   - 具体值参见传感器说明"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "设置成功"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 传感器未连接
+//   - 端口不支持
+//   - 版本不匹配
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 在端口1启用颜色传感器
+//	err := dobot.SetColorSensor(true, ColorPort_PORT1, 1)
+//	if err != nil {
+//	    log.Printf("设置颜色传感器失败: %v", err)
+//	} else {
+//	    log.Printf("颜色传感器设置成功")
+//	}
 func (dobot *Dobot) SetColorSensor(enable bool, colorPort ColorPort, version uint8) error {
 	message := &Message{
 		Id:       ProtocolColorSensor,
@@ -3272,13 +3380,42 @@ func (dobot *Dobot) GetColorSensor() (r, g, b uint8, err error) {
 }
 
 // SetInfraredSensor 设置红外传感器
-// @Summary 设置红外传感器
-// @Description 根据enable、infraredPort和version设置红外传感器状态
-// @Param enable query bool true "是否启用红外传感器"
-// @Param infraredPort query InfraredPort true "红外传感器端口"
-// @Param version query uint8 true "传感器版本号"
-// @Success 200 {string} "设置成功返回空字符串"
-// @Failure 400 {object} error "设置红外传感器失败时返回错误信息"
+// @Summary 设置机械臂红外传感器的工作状态
+// @Description 配置机械臂上的红外传感器。红外传感器可用于检测物体的存在
+// @Description 和距离，在避障、物体检测等应用中非常有用。使用前需要正确
+// @Description 连接传感器并设置其工作参数。
+//
+// @Param enable bool true "传感器使能状态：
+//   - true: 启用传感器
+//   - false: 禁用传感器"
+//
+// @Param infraredPort InfraredPort true "传感器端口：
+//   - InfraredPort_PORT1: 端口1
+//   - InfraredPort_PORT2: 端口2
+//     注意：具体可用端口取决于机械臂型号"
+//
+// @Param version uint8 true "传感器版本号：
+//   - 用于适配不同版本的传感器
+//   - 具体值参见传感器说明"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "设置成功"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 传感器未连接
+//   - 端口不支持
+//   - 版本不匹配
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 在端口1启用红外传感器
+//	err := dobot.SetInfraredSensor(true, InfraredPort_PORT1, 1)
+//	if err != nil {
+//	    log.Printf("设置红外传感器失败: %v", err)
+//	} else {
+//	    log.Printf("红外传感器设置成功")
+//	}
 func (dobot *Dobot) SetInfraredSensor(enable bool, infraredPort InfraredPort, version uint8) error {
 	message := &Message{
 		Id:       ProtocolInfraredSensor,
@@ -3364,6 +3501,11 @@ func (dobot *Dobot) GetAngleSensorStaticError() (rearArmAngleError, frontArmAngl
 }
 
 // SetAngleSensorCoef 设置角度传感器系数
+// @Summary 设置机械臂关节角度传感器的校准系数
+// @Description 设置机械臂后臂和前臂关节角度传感器的校准系数。这些系数用于
+// @Description 校正传感器的线性误差，通过调整比例系数来提高角度测量的准确性。
+// @Description 通常在出厂标定时设置，不建议用户随意修改。
+//
 // @Summary 设置角度传感器系数
 // @Description 为校正角度传感器误差，通过设置后臂和前臂的比例系数
 // @Param rearArmAngleCoef query float32 true "后臂角度系数"
@@ -3387,10 +3529,38 @@ func (dobot *Dobot) SetAngleSensorCoef(rearArmAngleCoef, frontArmAngleCoef float
 
 // GetAngleSensorCoef 获取角度传感器系数
 // @Summary 获取角度传感器系数
-// @Description 获取后臂和前臂角度传感器的校正比例系数
-// @Success 200 {number} float32 "返回后臂角度系数"
-// @Success 200 {number} float32 "返回前臂角度系数"
-// @Failure 400 {object} error "获取角度传感器系数失败时返回错误信息"
+// @Description 获取机械臂后臂和前臂关节角度传感器当前的校准系数。这些系数
+// @Description 用于校正传感器的线性误差，通过查看当前的系数值可以了解传感器
+// @Description 的校准状态。
+//
+// @Return float32 "后臂角度系数：
+//   - 用于校正后臂角度传感器的线性误差
+//   - 范围：通常在0.9-1.1之间
+//     注意：系数偏离1过大可能表示传感器异常"
+//
+// @Return float32 "前臂角度系数：
+//   - 用于校正前臂角度传感器的线性误差
+//   - 范围：通常在0.9-1.1之间
+//     注意：系数偏离1过大可能表示传感器异常"
+//
+// @Return error "错误信息"
+// @Success 200 {number} float32 "返回后臂和前臂的角度校准系数"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取角度传感器校准系数
+//	rearCoef, frontCoef, err := dobot.GetAngleSensorCoef()
+//	if err != nil {
+//	    log.Printf("获取角度传感器系数失败: %v", err)
+//	} else {
+//	    log.Printf("当前校准系数：")
+//	    log.Printf("  后臂: %.3f", rearCoef)
+//	    log.Printf("  前臂: %.3f", frontCoef)
+//	}
 func (dobot *Dobot) GetAngleSensorCoef() (rearArmAngleCoef, frontArmAngleCoef float32, err error) {
 	message := &Message{
 		Id:       ProtocolAngleSensorCoef,
@@ -3409,11 +3579,33 @@ func (dobot *Dobot) GetAngleSensorCoef() (rearArmAngleCoef, frontArmAngleCoef fl
 }
 
 // SetBaseDecoderStaticError 设置底座解码器静态误差
-// @Summary 设置底座解码器静态误差
-// @Description 为底座解码器设置静态补偿误差，单位可能为度或mm
-// @Param baseDecoderError query float32 true "底座解码器静态误差"
-// @Success 200 {string} "设置成功返回空字符串"
-// @Failure 400 {object} error "设置底座解码器静态误差失败时返回错误信息"
+// @Summary 设置机械臂底座编码器的静态误差补偿
+// @Description 设置机械臂底座旋转编码器的静态误差补偿值。这个补偿值用于
+// @Description 修正底座旋转时的系统误差，提高旋转定位的准确性。通常在
+// @Description 标定过程中设置，不建议随意修改。
+//
+// @Param baseDecoderError float32 true "底座编码器静态误差：
+//   - 单位：度（°）
+//   - 范围：通常在±1°以内
+//     注意：补偿值过大可能导致旋转定位不准"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "设置成功"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 补偿值超出范围
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置底座编码器静态误差补偿
+//	err := dobot.SetBaseDecoderStaticError(0.1)
+//	if err != nil {
+//	    log.Printf("设置底座编码器静态误差失败: %v", err)
+//	} else {
+//	    log.Printf("底座编码器静态误差设置成功")
+//	}
 func (dobot *Dobot) SetBaseDecoderStaticError(baseDecoderError float32) error {
 	message := &Message{
 		Id:       ProtocolBaseDecoderStaticError,
@@ -3429,10 +3621,32 @@ func (dobot *Dobot) SetBaseDecoderStaticError(baseDecoderError float32) error {
 }
 
 // GetBaseDecoderStaticError 获取底座解码器静态误差
-// @Summary 获取底座解码器静态误差
-// @Description 获取当前底座解码器的静态误差补偿值
-// @Success 200 {number} float32 "返回静态误差值"
-// @Failure 400 {object} error "获取底座解码器静态误差失败时返回错误信息"
+// @Summary 获取机械臂底座编码器的静态误差补偿值
+// @Description 获取机械臂底座旋转编码器当前设置的静态误差补偿值。这个值
+// @Description 用于修正底座旋转时的系统误差，通过查看当前的补偿值可以了解
+// @Description 底座旋转精度的校准状态。
+//
+// @Return float32 "底座编码器静态误差：
+//   - 单位：度（°）
+//   - 范围：通常在±1°以内
+//     注意：补偿值过大可能表示校准异常"
+//
+// @Return error "错误信息"
+// @Success 200 {number} float32 "返回底座编码器的静态误差补偿值"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取底座编码器静态误差补偿值
+//	error, err := dobot.GetBaseDecoderStaticError()
+//	if err != nil {
+//	    log.Printf("获取底座编码器静态误差失败: %v", err)
+//	} else {
+//	    log.Printf("当前底座编码器静态误差: %.2f°", error)
+//	}
 func (dobot *Dobot) GetBaseDecoderStaticError() (float32, error) {
 	message := &Message{
 		Id:       ProtocolBaseDecoderStaticError,
@@ -3450,11 +3664,34 @@ func (dobot *Dobot) GetBaseDecoderStaticError() (float32, error) {
 }
 
 // SetLRHandCalibrateValue 设置左右手校准值
-// @Summary 设置左右手校准值
-// @Description 设置机械臂左右手的校准参数，用于精度调整
-// @Param lrHandCalibrateValue query float32 true "左右手校准值"
-// @Success 200 {string} "设置成功返回空字符串"
-// @Failure 400 {object} error "设置左右手校准值失败时返回错误信息"
+// @Summary 设置机械臂左右手模式的校准参数
+// @Description 设置机械臂在左右手模式切换时的校准参数。这些参数用于确保
+// @Description 机械臂在左右手模式切换后的位置精度。通常在出厂标定时设置，
+// @Description 不建议用户随意修改。
+//
+// @Param lrHandCalibrateValue float32 true "左右手校准值：
+//   - 用于补偿左右手切换时的位置偏差
+//   - 单位：毫米（mm）
+//   - 范围：通常在±5mm以内
+//     注意：校准值过大可能表示机械结构异常"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "设置成功"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 校准值超出范围
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置左右手校准值
+//	err := dobot.SetLRHandCalibrateValue(1.5)
+//	if err != nil {
+//	    log.Printf("设置左右手校准值失败: %v", err)
+//	} else {
+//	    log.Printf("左右手校准值设置成功")
+//	}
 func (dobot *Dobot) SetLRHandCalibrateValue(lrHandCalibrateValue float32) error {
 	message := &Message{
 		Id:       ProtocolLRHandCalibrateValue,
@@ -3470,10 +3707,33 @@ func (dobot *Dobot) SetLRHandCalibrateValue(lrHandCalibrateValue float32) error 
 }
 
 // GetLRHandCalibrateValue 获取左右手校准值
-// @Summary 获取左右手校准值
-// @Description 获取当前机械臂左右手的校准参数值
-// @Success 200 {number} float32 "返回校准值"
-// @Failure 400 {object} error "获取左右手校准值失败时返回错误信息"
+// @Summary 获取机械臂左右手模式的校准参数
+// @Description 获取机械臂在左右手模式切换时的校准参数。通过查看当前的校准值，
+// @Description 可以了解机械臂左右手切换的精度补偿状态。这个值通常在出厂时
+// @Description 标定设置。
+//
+// @Return float32 "左右手校准值：
+//   - 用于补偿左右手切换时的位置偏差
+//   - 单位：毫米（mm）
+//   - 范围：通常在±5mm以内
+//     注意：校准值过大可能表示机械结构异常"
+//
+// @Return error "错误信息"
+// @Success 200 {number} float32 "返回左右手校准值"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取左右手校准值
+//	value, err := dobot.GetLRHandCalibrateValue()
+//	if err != nil {
+//	    log.Printf("获取左右手校准值失败: %v", err)
+//	} else {
+//	    log.Printf("当前左右手校准值: %.2fmm", value)
+//	}
 func (dobot *Dobot) GetLRHandCalibrateValue() (float32, error) {
 	message := &Message{
 		Id:       ProtocolLRHandCalibrateValue,
