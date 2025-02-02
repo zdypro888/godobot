@@ -2,11 +2,11 @@ package godobot
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
 	"io"
-	"log"
 	"net"
 	"strings"
 	"time"
@@ -51,6 +51,18 @@ func (message *Message) SetCtrl(ctrl uint8) {
 	if (ctrl>>1)&0x01 != 0 {
 		message.IsQueued = true
 	}
+}
+
+func (message *Message) Data() []byte {
+	buf := make([]byte, MaxPayloadSize-2)
+	copy(buf, message.Params)
+	return buf
+}
+
+func (message *Message) Reader() io.Reader {
+	buf := make([]byte, MaxPayloadSize-2)
+	copy(buf, message.Params)
+	return bytes.NewReader(buf)
 }
 
 type outMessage struct {
@@ -117,9 +129,9 @@ func (connector *Connector) Open(ctx context.Context, name string, baudrate uint
 	connector.errChan = make(chan error)
 	connector.messageAck = make(chan *Message)
 	connector.messageQueue = make(chan *outMessage)
+	connector.leftSpace = 0
 	go connector.receiveGoRoutine(ctx)
 	go connector.processGoRoutine(ctx)
-	connector.messageQueue <- &outMessage{Message: &Message{Id: ProtocolQueuedCmdLeftSpace}}
 	return nil
 }
 
@@ -208,7 +220,6 @@ func (connector *Connector) sendMessage(ctx context.Context, message *Message) (
 	var err error
 	const maxRetries = 3
 	for retry := 0; retry < maxRetries; retry++ {
-		log.Printf("发送信息: %d", message.Id)
 		if err = connector.writeMessage(message); err != nil {
 			return nil, err
 		}
@@ -217,14 +228,14 @@ func (connector *Connector) sendMessage(ctx context.Context, message *Message) (
 			return nil, ctx.Err()
 		case ack := <-connector.messageAck:
 			if ack.Id == message.Id {
-				log.Printf("收到信息: %d", ack.Id)
+				if ack.Id == ProtocolQueuedCmdLeftSpace {
+					connector.leftSpace = binary.LittleEndian.Uint32(ack.Params)
+				}
 				return ack, nil
 			}
 			// 非预期消息，丢弃。TODO: 是否要判断丢弃几个？
-			log.Printf("丢弃信息: %d", ack.Id)
 		case <-time.After(3 * time.Second):
 			// 超时
-			log.Printf("发送信息超时: %d", message.Id)
 		}
 	}
 	return nil, nil
@@ -241,7 +252,7 @@ func (connector *Connector) processGoRoutine(ctx context.Context) {
 			breakfor = true
 		case message := <-connector.messageQueue:
 			var ack *Message
-			if message.Id != ProtocolQueuedCmdLeftSpace && (!message.IsQueued || connector.leftSpace > 0) {
+			if !message.IsQueued || connector.leftSpace > 0 {
 				// 非队列消息直接发送
 				if ack, err = connector.sendMessage(ctx, message.Message); err != nil {
 					breakfor = true
@@ -253,12 +264,7 @@ func (connector *Connector) processGoRoutine(ctx context.Context) {
 					message.Error(errors.New("send message timeout max retries"))
 				}
 			} else {
-				var cmdGetLeftSpace *Message
-				if message.Id == ProtocolQueuedCmdLeftSpace {
-					cmdGetLeftSpace = message.Message
-				} else {
-					cmdGetLeftSpace = &Message{Id: ProtocolQueuedCmdLeftSpace, RW: false, IsQueued: false}
-				}
+				cmdGetLeftSpace := &Message{Id: ProtocolQueuedCmdLeftSpace, RW: false, IsQueued: false}
 				if ack, err = connector.sendMessage(ctx, cmdGetLeftSpace); err != nil {
 					breakfor = true
 					message.Error(err)
@@ -268,8 +274,6 @@ func (connector *Connector) processGoRoutine(ctx context.Context) {
 					connector.leftSpace = binary.LittleEndian.Uint32(numbuf)
 					if connector.leftSpace == 0 {
 						message.Error(errors.New("left space is 0"))
-					} else if message.Id == ProtocolQueuedCmdLeftSpace {
-						message.Reply(ack)
 					} else if ack, err = connector.sendMessage(ctx, message.Message); err != nil {
 						breakfor = true
 						message.Error(err)

@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/zdypro888/godobot"
 )
@@ -17,42 +16,14 @@ func main() {
 	if err := dobot.Connect(ctx, "/dev/cu.usbserial-840", 115200); err != nil {
 		fmt.Println(err)
 	}
+	leftSpace, err := dobot.GetQueuedCmdLeftSpace()
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("leftSpace:", leftSpace)
 	dobot.SetQueuedCmdClear()
-	dobot.SetHOMEParams(&godobot.HOMEParams{X: 200, Y: 200, Z: 200, R: 200})
-	jointParams := &godobot.PTPJointParams{}
-	jointParams.Velocity[0] = 200
-	jointParams.Velocity[1] = 200
-	jointParams.Velocity[2] = 200
-	jointParams.Velocity[3] = 200
-	jointParams.Acceleration[0] = 200
-	jointParams.Acceleration[1] = 200
-	jointParams.Acceleration[2] = 200
-	jointParams.Acceleration[3] = 200
-	dobot.SetPTPJointParams(jointParams)
-	dobot.SetPTPCommonParams(&godobot.PTPCommonParams{VelocityRatio: 100, AccelerationRatio: 100})
-
-	dobot.SetHOMECmd(&godobot.HOMECmd{Reserved: 0})
-
-	var lastIndex uint64
-	for i := 0; i < 5; i++ {
-		var offset float32
-		if i%2 == 0 {
-			offset = 50
-		} else {
-			offset = -50
-		}
-		lastIndex, _ = dobot.SetPTPCmd(&godobot.PTPCmd{PTPMode: godobot.PTPJUMPXYZMode, X: 200 + offset, Y: 200 + offset, Z: 200 + offset, R: 200 + offset})
-	}
-
+	dobot.SetHOMEParams(&godobot.HOMEParams{X: 200, Y: 200, Z: 200, R: 200}, false)
 	dobot.SetQueuedCmdStartExec()
-	for {
-		index, _ := dobot.GetQueuedCmdCurrentIndex()
-		if lastIndex > index {
-			time.Sleep(100 * time.Millisecond)
-		} else {
-			break
-		}
-	}
 
 	dobot.SetQueuedCmdStopExec()
 
