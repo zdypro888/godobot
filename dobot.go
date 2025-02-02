@@ -2088,40 +2088,42 @@ func (dobot *Dobot) GetJOGCoordinateParams() (*JOGCoordinateParams, error) {
 }
 
 // SetJOGLParams 设置JOGL参数
-// @Summary 设置JOG模式下的连续关节角度增量参数
-// @Description 设置机械臂在JOG（点动）模式下的连续关节角度增量运动参数。
-// @Description 这些参数用于控制机械臂在连续运动时的角度增量变化，影响运动
-// @Description 的平滑度和精确度。注意此函数的设置为立即生效，不支持队列执行。
+// @Summary 设置JOG模式下的滑轨速度和加速度参数
+// @Description 设置机械臂在JOG模式下滑轨运动的速度和加速度参数。
+// @Description 这些参数影响机械臂在手动点动模式下的滑轨运动特性。合适的
+// @Description 参数设置可以确保运动平稳且可控。
 //
-// @Param params *JOGLParams true "JOGL运动参数：
-//   - velocity: 关节角速度（单位：°/s）
-//   - acceleration: 关节角加速度（单位：°/s²）
-//     注意：参数设置不合理可能导致运动不稳定或不平滑"
+// @Param params *JOGLParams true "滑轨点动参数：
+//   - velocity: 滑轨速度（单位：mm/s）
+//   - acceleration: 滑轨加速度（单位：mm/s²）
+//     注意：参数必须在机械臂规格范围内"
 //
-// @Return uint64 "指令队列索引（此函数总是返回0，因为不支持队列执行）"
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
 // @Return error "错误信息"
-// @Success 200 {number} uint64 "返回0"
+// @Success 200 {number} uint64 "返回指令索引"
 // @Failure 400 {error} "设置失败，可能的错误：
-//   - 参数为空
-//   - 参数值超出范围
+//   - 参数无效
+//   - 参数超出范围
 //   - 机械臂被锁定
-//   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
 //
 // @Example
 //
-//	// 设置JOGL运动参数
+//	// 设置滑轨点动参数
 //	params := &JOGLParams{
-//	    Velocity:     20.0,  // 角速度20°/s
-//	    Acceleration: 50.0,  // 角加速度50°/s²
+//	    Velocity:     100,  // 滑轨速度100mm/s
+//	    Acceleration: 500,  // 滑轨加速度500mm/s²
 //	}
-//	_, err := dobot.SetJOGLParams(params)
+//	index, err := dobot.SetJOGLParams(params)
 //	if err != nil {
-//	    log.Printf("设置JOGL参数失败: %v", err)
-//	} else {
-//	    log.Printf("JOGL参数设置成功")
+//	    log.Printf("设置滑轨点动参数失败: %v", err)
+//	    return
 //	}
+//	log.Printf("滑轨点动参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetJOGLParams(params *JOGLParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2142,34 +2144,34 @@ func (dobot *Dobot) SetJOGLParams(params *JOGLParams) (queuedCmdIndex uint64, er
 }
 
 // GetJOGLParams 获取JOGL参数
-// @Summary 获取JOG模式下的连续关节角度增量参数
-// @Description 获取机械臂在JOG（点动）模式下的连续关节角度增量运动参数
-// @Description 设置。可用于确认当前的运动参数配置，或在修改参数前获取原始
-// @Description 值作为参考。
+// @Summary 获取JOG模式下的滑轨速度和加速度参数
+// @Description 获取机械臂在JOG模式下滑轨运动的当前速度和加速度参数。
+// @Description 通过这些参数可以了解机械臂在手动点动模式下的滑轨运动
+// @Description 特性设置。
 //
-// @Return *JOGLParams "JOGL运动参数：
-//   - velocity: 关节角速度（单位：°/s）
-//   - acceleration: 关节角加速度（单位：°/s²）"
+// @Return *JOGLParams "滑轨点动参数：
+//   - velocity: 滑轨速度（单位：mm/s）
+//   - acceleration: 滑轨加速度（单位：mm/s²）
+//     注意：返回当前实际设置的参数值"
 //
 // @Return error "错误信息"
-// @Success 200 {object} *JOGLParams "返回JOGL运动参数结构体"
+// @Success 200 {object} *JOGLParams "返回滑轨点动参数结构体"
 // @Failure 400 {error} "获取失败，可能的错误：
 //   - 通信错误
 //   - 设备未连接
-//   - 响应数据无效
-//   - 数据解析错误"
+//   - 响应数据无效"
 //
 // @Example
 //
-//	// 获取当前JOGL运动参数
+//	// 获取滑轨点动参数
 //	params, err := dobot.GetJOGLParams()
 //	if err != nil {
-//	    log.Printf("获取JOGL参数失败: %v", err)
-//	} else {
-//	    log.Printf("当前JOGL参数：")
-//	    log.Printf("  角速度: %.2f °/s", params.Velocity)
-//	    log.Printf("  角加速度: %.2f °/s²", params.Acceleration)
+//	    log.Printf("获取滑轨点动参数失败: %v", err)
+//	    return
 //	}
+//	log.Printf("当前滑轨点动参数：")
+//	log.Printf("  速度: %.1f mm/s", params.Velocity)
+//	log.Printf("  加速度: %.1f mm/s²", params.Acceleration)
 func (dobot *Dobot) GetJOGLParams() (*JOGLParams, error) {
 	message := &Message{
 		Id:       ProtocolJOGLParams,
@@ -2228,9 +2230,9 @@ func (dobot *Dobot) GetJOGLParams() (*JOGLParams, error) {
 //	index, err := dobot.SetJOGCommonParams(params, true)
 //	if err != nil {
 //	    log.Printf("设置JOG通用参数失败: %v", err)
-//	} else {
-//	    log.Printf("JOG通用参数设置成功，指令索引: %d", index)
+//	    return
 //	}
+//	log.Printf("JOG通用参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetJOGCommonParams(params *JOGCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2259,33 +2261,33 @@ func (dobot *Dobot) SetJOGCommonParams(params *JOGCommonParams, isQueued bool) (
 
 // GetJOGCommonParams 获取JOG通用参数
 // @Summary 获取JOG模式下的通用运动参数
-// @Description 获取机械臂在JOG（点动）模式下所有运动方式共用的基础参数
-// @Description 设置。可用于确认当前的运动参数配置，或在修改参数前获取原始
-// @Description 值作为参考。
+// @Description 获取机械臂在JOG（点动）模式下所有运动方式共用的基础参数。
+// @Description 通过这些参数可以了解当前JOG运动的速度和加速度设置，便于
+// @Description 调整运动特性。
 //
 // @Return *JOGCommonParams "JOG通用参数：
 //   - velocityRatio: 速度比例，范围[0-100]
-//   - accelerationRatio: 加速度比例，范围[0-100]"
+//   - accelerationRatio: 加速度比例，范围[0-100]
+//     注意：返回当前实际设置的参数值"
 //
 // @Return error "错误信息"
 // @Success 200 {object} *JOGCommonParams "返回JOG通用参数结构体"
 // @Failure 400 {error} "获取失败，可能的错误：
 //   - 通信错误
 //   - 设备未连接
-//   - 响应数据无效
-//   - 数据解析错误"
+//   - 响应数据无效"
 //
 // @Example
 //
-//	// 获取当前JOG通用运动参数
+//	// 获取JOG通用参数
 //	params, err := dobot.GetJOGCommonParams()
 //	if err != nil {
 //	    log.Printf("获取JOG通用参数失败: %v", err)
-//	} else {
-//	    log.Printf("当前JOG通用参数：")
-//	    log.Printf("  速度比例: %d%%", params.VelocityRatio)
-//	    log.Printf("  加速度比例: %d%%", params.AccelerationRatio)
+//	    return
 //	}
+//	log.Printf("当前JOG通用参数：")
+//	log.Printf("  速度比例: %d%%", params.VelocityRatio)
+//	log.Printf("  加速度比例: %d%%", params.AccelerationRatio)
 func (dobot *Dobot) GetJOGCommonParams() (*JOGCommonParams, error) {
 	message := &Message{
 		Id:       ProtocolJOGCommonParams,
@@ -2313,20 +2315,27 @@ func (dobot *Dobot) GetJOGCommonParams() (*JOGCommonParams, error) {
 // @Description 或笛卡尔坐标运动模式，并指定运动方向。此指令用于手动控制机械
 // @Description 臂的精确移动，常用于示教和位置微调。
 //
-// @Param cmd *JOGCmd true "JOG运动指令参数结构体，包含：
+// @Param cmd *JOGCmd true "JOG运动指令参数：
 //   - isJoint: 运动模式选择（true为关节模式/false为坐标模式）
 //   - index: 运动轴索引（关节模式：0-3为关节1-4；坐标模式：0-3为X/Y/Z/R轴）
-//   - direction: 运动方向（1正向/0停止/-1负向）"
+//   - direction: 运动方向（1正向/0停止/-1负向）
+//     注意：确保选择正确的运动模式和轴索引"
 //
-// @Param isQueued bool true "是否加入指令队列（true加入队列/false立即执行）"
-// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保运动顺序"
+//
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
 // @Return error "错误信息"
-// @Success 200 {number} uint64 "返回指令队列索引"
+// @Success 200 {number} uint64 "返回指令索引"
 // @Failure 400 {error} "执行失败，可能的错误：
-//   - 参数为空
-//   - 参数值无效
+//   - 参数无效
+//   - 轴索引超出范围
 //   - 机械臂被锁定
-//   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
 //
@@ -2341,12 +2350,16 @@ func (dobot *Dobot) GetJOGCommonParams() (*JOGCommonParams, error) {
 //	index, err := dobot.SetJOGCmd(cmd, true)
 //	if err != nil {
 //	    log.Printf("执行JOG运动失败: %v", err)
-//	} else {
-//	    log.Printf("正在执行JOG运动，指令索引: %d", index)
-//	    // 运动一段时间后停止
-//	    time.Sleep(1 * time.Second)
-//	    cmd.Direction = 0    // 停止运动
-//	    _, err = dobot.SetJOGCmd(cmd, true)
+//	    return
+//	}
+//	log.Printf("JOG运动开始执行，指令索引: %d", index)
+//
+//	// 等待一段时间后停止运动
+//	time.Sleep(1 * time.Second)
+//	cmd.Direction = 0    // 停止运动
+//	index, err = dobot.SetJOGCmd(cmd, true)
+//	if err != nil {
+//	    log.Printf("停止JOG运动失败: %v", err)
 //	}
 func (dobot *Dobot) SetJOGCmd(cmd *JOGCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
@@ -5529,4 +5542,72 @@ func (dobot *Dobot) SetLostStepCmd(isQueued bool) (queuedCmdIndex uint64, err er
 	}
 	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Params)
 	return queuedCmdIndex, nil
+}
+
+// GetJOGCmd 获取JOG运动指令状态
+// @Summary 获取当前JOG运动指令的状态
+// @Description 获取机械臂当前JOG（点动）模式下的运动状态信息。通过此函数
+// @Description 可以了解当前的运动模式、运动轴和运动方向等信息。这对于监控
+// @Description 和同步控制非常有用。
+//
+// @Return *JOGCmd "JOG运动状态：
+//   - isJoint: 当前运动模式（true为关节模式/false为坐标模式）
+//   - index: 当前运动轴索引
+//   - direction: 当前运动方向
+//     注意：返回的是最后一次设置的状态"
+//
+// @Return error "错误信息"
+// @Success 200 {object} *JOGCmd "返回JOG运动状态结构体"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取当前JOG运动状态
+//	cmd, err := dobot.GetJOGCmd()
+//	if err != nil {
+//	    log.Printf("获取JOG运动状态失败: %v", err)
+//	    return
+//	}
+//
+//	// 输出状态信息
+//	log.Printf("当前JOG运动状态：")
+//	if cmd.IsJoint {
+//	    log.Printf("  模式: 关节运动")
+//	    log.Printf("  关节索引: %d", cmd.Index)
+//	} else {
+//	    log.Printf("  模式: 坐标运动")
+//	    axes := []string{"X", "Y", "Z", "R"}
+//	    log.Printf("  运动轴: %s", axes[cmd.Index])
+//	}
+//
+//	switch cmd.Direction {
+//	case 1:
+//	    log.Printf("  方向: 正向")
+//	case -1:
+//	    log.Printf("  方向: 负向")
+//	default:
+//	    log.Printf("  状态: 停止")
+//	}
+func (dobot *Dobot) GetJOGCmd() (*JOGCmd, error) {
+	message := &Message{
+		Id:       ProtocolJOGCmd,
+		RW:       false,
+		IsQueued: false,
+	}
+	resp, err := dobot.connector.SendMessage(context.Background(), message)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Params) < 8 {
+		return nil, errors.New("invalid response")
+	}
+
+	cmd := &JOGCmd{}
+	if err := binary.Read(bytes.NewReader(resp.Params), binary.LittleEndian, cmd); err != nil {
+		return nil, fmt.Errorf("failed to read JOG cmd: %v", err)
+	}
+	return cmd, nil
 }
