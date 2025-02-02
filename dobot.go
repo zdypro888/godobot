@@ -10,130 +10,16 @@ import (
 )
 
 // Dobot 机械臂控制结构
-// @Description Dobot Magician 机械臂的主控制结构体，封装了与机械臂通信和控制的所有功能。
-// @Description 该结构体提供了完整的机械臂控制接口，包括：
-// @Description  - 基础控制：连接、断开、重置等
-// @Description  - 运动控制：位置、姿态、关节角度等
-// @Description  - 末端控制：夹持器、吸盘、激光等
-// @Description  - IO控制：数字量、模拟量输入输出
-// @Description  - 传感器控制：红外、角度传感器等
-// @Description  - 队列控制：指令队列管理和同步
-// @Description  - 参数设置：设备信息、网络配置等
-//
-// @Field connector *Connector "通信连接器：
-//   - 负责与机械臂的底层通信
-//   - 管理消息的发送和接收
-//   - 处理通信协议和数据格式
-//     注意：通常不需要直接操作此字段"
-//
-// @Example
-//
-//	// 创建Dobot实例并建立连接
-//	dobot := NewDobot()
-//	err := dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
-//	if err != nil {
-//	    log.Fatal("连接失败:", err)
-//	}
-//	defer dobot.Disconnect()
-//
-//	// 获取设备信息
-//	info, _ := dobot.GetDeviceInfo()
-//	log.Printf("设备类型: %d", info.DeviceType)
-//
-//	// 控制机械臂运动
-//	dobot.SetPTPCmd(&PTPCmd{
-//	    PTPMode: PTPMode_MovJ,
-//	    X: 200, Y: 0, Z: 50, R: 0,
-//	})
 type Dobot struct {
 	connector *Connector
 }
 
 // NewDobot 创建新的Dobot实例
-// @Summary 创建新的机械臂控制实例
-// @Description 初始化并返回一个新的Dobot机械臂控制实例。该实例包含了
-// @Description 所有控制机械臂所需的方法。在使用任何控制功能之前，必须
-// @Description 先创建一个控制实例。
-//
-// @Return *Dobot "返回值说明：
-//   - 返回Dobot实例指针
-//   - 该实例用于后续所有的机械臂控制操作
-//     注意：创建实例后需要调用Connect方法建立连接"
-//
-// @Success 200 {object} *Dobot "返回Dobot实例"
-//
-// @Example
-//
-//	// 创建新的机械臂控制实例
-//	dobot := NewDobot()
-//	if dobot != nil {
-//	    // 创建成功，继续建立连接
-//	    err := dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
-//	    if err != nil {
-//	        log.Fatal("连接失败:", err)
-//	    }
-//	    log.Printf("机械臂控制实例创建并连接成功")
-//	}
 func NewDobot() *Dobot {
 	return &Dobot{connector: &Connector{}}
 }
 
 // ConnectDobot 连接到Dobot设备
-// @Summary 建立与机械臂的通信连接
-// @Description 通过指定的串口和波特率连接到Dobot机械臂。此函数会尝试
-// @Description 打开指定的串口并建立与机械臂的通信连接。连接成功后才能
-// @Description 执行后续的控制命令。如果连接失败，需要检查串口设备是否
-// @Description 正确以及波特率设置是否匹配。
-//
-// @Param ctx context.Context true "上下文对象：
-//   - 用于控制连接超时和取消操作
-//   - 可以使用 context.Background() 创建"
-//
-// @Param portName string true "串口设备名称：
-//   - Windows系统：'COM1', 'COM2', ...
-//   - Linux系统：'/dev/ttyUSB0', '/dev/ttyACM0', ...
-//   - macOS系统：'/dev/cu.usbserial-*'
-//     注意：确保有正确的串口访问权限"
-//
-// @Param baudrate uint32 true "串口通信波特率：
-//   - 标准值：115200
-//   - 必须与机械臂设置匹配
-//     注意：不正确的波特率会导致通信错误"
-//
-// @Return error "错误信息"
-// @Success 200 {string} "连接成功"
-// @Failure 400 {error} "连接失败，可能的错误：
-//   - 串口不存在
-//   - 串口被占用
-//   - 波特率不支持
-//   - 权限不足
-//   - 通信超时
-//   - 设备未就绪"
-//
-// @Example
-//
-//	// 连接到机械臂
-//	ctx := context.Background()
-//	err := dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
-//	if err != nil {
-//	    log.Printf("连接失败: %v", err)
-//	    // 检查串口设备和权限
-//	    return
-//	}
-//	log.Printf("成功连接到机械臂")
-//
-//	// 使用带超时的连接
-//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-//	defer cancel()
-//	err = dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
-//	if err != nil {
-//	    if err == context.DeadlineExceeded {
-//	        log.Printf("连接超时")
-//	    } else {
-//	        log.Printf("连接失败: %v", err)
-//	    }
-//	    return
-//	}
 func (dobot *Dobot) Connect(ctx context.Context, portName string, baudrate uint32) error {
 	err := dobot.connector.Open(ctx, portName, baudrate)
 	if err != nil {
@@ -850,13 +736,57 @@ func (dobot *Dobot) GetHOMEParams() (*HOMEParams, error) {
 	return params, nil
 }
 
-// SetHOMECmd 设置HOME命令
-// @Summary 执行HOME命令
-// @Description 执行机械臂的HOME命令，通过HOMECmd结构体详细指定归位参数，并决定是否队列执行
-// @Param cmd body *HOMECmd true "HOMECmd结构体，包含归位命令参数"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint64 "返回命令队列索引"
-// @Failure 400 {object} error "执行HOME命令失败时返回错误信息"
+// SetHOMECmd 执行回零操作
+// @Summary 执行机械臂回零操作
+// @Description 执行机械臂的回零操作。回零操作会将机械臂移动到预设的
+// @Description 原点位置，这个位置通常是机械臂的安全位置。此功能用于
+// @Description 初始化机械臂位置或在异常后恢复到已知状态。
+//
+// @Param cmd *HOMECmd true "回零命令参数：
+//   - 包含回零操作的具体参数
+//   - 具体参数含义参见HOMECmd结构体定义
+//     注意：确保参数设置合理，避免碰撞"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保操作顺序"
+//
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令索引"
+// @Failure 400 {error} "执行失败，可能的错误：
+//   - 参数无效
+//   - 机械臂被锁定
+//   - 机械臂处于报警状态
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 执行回零操作
+//	cmd := &HOMECmd{
+//	    // 设置回零参数
+//	}
+//	index, err := dobot.SetHOMECmd(cmd, true)
+//	if err != nil {
+//	    log.Printf("执行回零操作失败: %v", err)
+//	    return
+//	}
+//	log.Printf("回零操作开始执行，指令索引: %d", index)
+//
+//	// 等待回零操作完成
+//	for {
+//	    finished, _ := dobot.GetQueuedCmdMotionFinish()
+//	    if finished {
+//	        log.Printf("回零操作完成")
+//	        break
+//	    }
+//	    time.Sleep(100 * time.Millisecond)
+//	}
 func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -880,28 +810,30 @@ func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd, isQueued bool) (queuedCmdIndex uint
 	return queuedCmdIndex, nil
 }
 
-// SetAutoLevelingCmd 设置自动调平命令
-// @Summary 执行机械臂自动调平
-// @Description 控制机械臂执行自动调平操作。自动调平功能用于确保机械臂的工作平面
-// @Description 保持水平，这对于某些精密操作（如3D打印、点胶等）非常重要。调平过程
-// @Description 会自动测量和补偿工作平面的倾斜度。
-// @Param cmd *AutoLevelingCmd true "自动调平命令参数结构体，包含：
-//   - enable: 是否启用自动调平
-//   - accuracy: 调平精度要求，单位mm
-//   - maxHeight: 最大调平高度，单位mm"
+// SetAutoLevelingCmd 执行自动调平
+// @Summary 执行机械臂自动调平操作
+// @Description 执行机械臂的自动调平操作。自动调平功能用于确保机械臂
+// @Description 的基座处于水平状态，这对于保证运动精度和重复定位精度
+// @Description 非常重要。调平过程会自动测量和补偿基座倾斜。
+//
+// @Param cmd *AutoLevelingCmd true "自动调平命令参数：
+//   - 包含调平操作的具体参数
+//   - 具体参数含义参见AutoLevelingCmd结构体定义
+//     注意：确保调平区域内无障碍物"
 //
 // @Param isQueued bool true "是否加入指令队列：
-//   - true: 将指令加入队列，按顺序执行
-//   - false: 立即执行该指令
-//   - 建议设置为true以确保运动顺序"
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保操作顺序"
 //
-// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
 // @Return error "错误信息"
-// @Success 200 {number} uint64 "返回指令队列索引"
+// @Success 200 {number} uint64 "返回指令索引"
 // @Failure 400 {error} "执行失败，可能的错误：
 //   - 参数无效
-//   - 精度要求过高
-//   - 超出最大调平高度
 //   - 机械臂被锁定
 //   - 机械臂处于报警状态
 //   - 通信错误
@@ -909,16 +841,31 @@ func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd, isQueued bool) (queuedCmdIndex uint
 //
 // @Example
 //
+//	// 执行自动调平
 //	cmd := &AutoLevelingCmd{
-//	    enable: true,
-//	    accuracy: 0.02,    // 精度0.02mm
-//	    maxHeight: 20.0,   // 最大调平高度20mm
+//	    // 设置调平参数
 //	}
 //	index, err := dobot.SetAutoLevelingCmd(cmd, true)
 //	if err != nil {
 //	    log.Printf("执行自动调平失败: %v", err)
-//	} else {
-//	    log.Printf("正在执行自动调平，指令索引: %d", index)
+//	    return
+//	}
+//	log.Printf("自动调平开始执行，指令索引: %d", index)
+//
+//	// 等待调平完成
+//	for {
+//	    finished, _ := dobot.GetQueuedCmdMotionFinish()
+//	    if finished {
+//	        // 获取调平结果
+//	        result, err := dobot.GetAutoLevelingResult()
+//	        if err != nil {
+//	            log.Printf("获取调平结果失败: %v", err)
+//	        } else {
+//	            log.Printf("调平完成，补偿角度: %.2f°", result)
+//	        }
+//	        break
+//	    }
+//	    time.Sleep(100 * time.Millisecond)
 //	}
 func (dobot *Dobot) SetAutoLevelingCmd(cmd *AutoLevelingCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
