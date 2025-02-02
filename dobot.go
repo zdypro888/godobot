@@ -20,8 +20,7 @@ func NewDobot() *Dobot {
 }
 
 // ConnectDobot 连接到Dobot设备
-func (dobot *Dobot) Connect(portName string, baudrate uint32) error {
-	ctx := context.Background()
+func (dobot *Dobot) Connect(ctx context.Context, portName string, baudrate uint32) error {
 	err := dobot.connector.Open(ctx, portName, baudrate)
 	if err != nil {
 		return err

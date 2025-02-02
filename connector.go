@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"log"
 	"net"
 	"strings"
 	"time"
@@ -207,6 +208,7 @@ func (connector *Connector) sendMessage(ctx context.Context, message *Message) (
 	var err error
 	const maxRetries = 3
 	for retry := 0; retry < maxRetries; retry++ {
+		log.Printf("发送信息: %d", message.Id)
 		if err = connector.writeMessage(message); err != nil {
 			return nil, err
 		}
@@ -215,11 +217,14 @@ func (connector *Connector) sendMessage(ctx context.Context, message *Message) (
 			return nil, ctx.Err()
 		case ack := <-connector.messageAck:
 			if ack.Id == message.Id {
+				log.Printf("收到信息: %d", ack.Id)
 				return ack, nil
 			}
 			// 非预期消息，丢弃。TODO: 是否要判断丢弃几个？
+			log.Printf("丢弃信息: %d", ack.Id)
 		case <-time.After(3 * time.Second):
 			// 超时
+			log.Printf("发送信息超时: %d", message.Id)
 		}
 	}
 	return nil, nil
