@@ -2522,10 +2522,35 @@ func (dobot *Dobot) SetCPRHoldEnable(isEnable bool) error {
 }
 
 // GetCPRHoldEnable 获取CP运动保持使能状态
-// @Summary 获取CPR保持使能状态
-// @Description 获取当前CP模式下是否启用保持功能
+// @Summary 获取机械臂CP运动保持功能的使能状态
+// @Description 获取机械臂在CP（连续路径）运动模式下保持功能的使能状态。
+// @Description CP运动保持功能可以让机械臂在CP运动过程中保持特定的状态或
+// @Description 参数，提高运动的稳定性和精确度。
+//
+// @Return bool "使能状态：
+//   - true: CP运动保持功能已启用
+//   - false: CP运动保持功能已禁用"
+//
+// @Return error "错误信息"
 // @Success 200 {boolean} bool "返回使能状态"
-// @Failure 400 {object} error "获取CPR保持使能状态失败时返回错误信息"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取CP运动保持功能状态
+//	enabled, err := dobot.GetCPRHoldEnable()
+//	if err != nil {
+//	    log.Printf("获取CP运动保持状态失败: %v", err)
+//	} else {
+//	    if enabled {
+//	        log.Printf("CP运动保持功能已启用")
+//	    } else {
+//	        log.Printf("CP运动保持功能已禁用")
+//	    }
+//	}
 func (dobot *Dobot) GetCPRHoldEnable() (bool, error) {
 	message := &Message{
 		Id:       ProtocolCPRHoldEnable,
@@ -2543,12 +2568,48 @@ func (dobot *Dobot) GetCPRHoldEnable() (bool, error) {
 }
 
 // SetCPCommonParams 设置CP通用参数
-// @Summary 设置CP共通参数
-// @Description 通过CPCommonParams结构体设置连续运动的共通参数
-// @Param params body *CPCommonParams true "CP共通参数结构体"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint8 "返回命令队列索引"
-// @Failure 400 {object} error "设置CP共通参数失败时返回错误信息"
+// @Summary 设置机械臂CP运动的通用参数
+// @Description 设置机械臂在CP（连续路径）运动模式下的通用参数。这些参数
+// @Description 影响所有CP运动的基本特性，如加加速度、加速度等。合理的参数
+// @Description 设置可以优化运动的平滑度和精确度。
+//
+// @Param params *CPCommonParams true "CP通用参数：
+//   - planAcc: 规划加速度
+//   - junctionVel: 拐点速度
+//   - acc: 加速度
+//   - realTimeTrack: 实时轨迹开关
+//     注意：参数设置不合理可能导致运动不稳定"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 将指令加入队列，按顺序执行
+//   - false: 立即执行该指令
+//   - 建议使用队列模式以确保参数设置顺序"
+//
+// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数为空
+//   - 参数值超出范围
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置CP运动通用参数
+//	params := &CPCommonParams{
+//	    PlanAcc:       100,   // 规划加速度
+//	    JunctionVel:   50,    // 拐点速度
+//	    Acc:           200,   // 加速度
+//	    RealTimeTrack: false, // 关闭实时轨迹
+//	}
+//	index, err := dobot.SetCPCommonParams(params, true)
+//	if err != nil {
+//	    log.Printf("设置CP通用参数失败: %v", err)
+//	} else {
+//	    log.Printf("CP通用参数设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetCPCommonParams(params *CPCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2669,6 +2730,38 @@ func (dobot *Dobot) SetARCParams(params *ARCParams) (queuedCmdIndex uint64, err 
 }
 
 // GetARCParams 获取ARC参数
+// @Summary 获取机械臂ARC运动参数
+// @Description 获取机械臂在ARC（圆弧）模式下的运动参数。这些参数控制
+// @Description 机械臂在执行圆弧轨迹运动时的速度和加速度特性。可用于
+// @Description 确认当前的运动参数配置。
+//
+// @Return *ARCParams "ARC运动参数：
+//   - xyzVelocity: XYZ轴速度（单位：mm/s）
+//   - rVelocity: R轴速度（单位：°/s）
+//   - xyzAcceleration: XYZ轴加速度（单位：mm/s²）
+//   - rAcceleration: R轴加速度（单位：°/s²）"
+//
+// @Return error "错误信息"
+// @Success 200 {object} *ARCParams "返回ARC参数结构体"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效
+//   - 数据解析错误"
+//
+// @Example
+//
+//	// 获取当前ARC运动参数
+//	params, err := dobot.GetARCParams()
+//	if err != nil {
+//	    log.Printf("获取ARC参数失败: %v", err)
+//	} else {
+//	    log.Printf("当前ARC参数：")
+//	    log.Printf("  XYZ轴速度: %.2f mm/s", params.XYZVelocity)
+//	    log.Printf("  R轴速度: %.2f °/s", params.RVelocity)
+//	    log.Printf("  XYZ轴加速度: %.2f mm/s²", params.XYZAcceleration)
+//	    log.Printf("  R轴加速度: %.2f °/s²", params.RAcceleration)
+//	}
 func (dobot *Dobot) GetARCParams() (*ARCParams, error) {
 	message := &Message{
 		Id:       ProtocolARCParams,
@@ -2691,6 +2784,43 @@ func (dobot *Dobot) GetARCParams() (*ARCParams, error) {
 }
 
 // SetARCCmd 设置ARC命令
+// @Summary 设置机械臂ARC运动指令
+// @Description 发送ARC（圆弧）运动指令给机械臂。通过指定圆弧运动的
+// @Description 关键点，控制机械臂执行圆弧轨迹运动。圆弧由起点（当前
+// @Description 位置）和两个路径点确定。
+//
+// @Param cmd *ARCCmd true "ARC运动指令参数：
+//   - point1: 第一个路径点坐标（x,y,z,r）
+//   - point2: 第二个路径点坐标（x,y,z,r）
+//     注意：
+//   - 起点为机械臂当前位置
+//   - 三点不能共线，否则无法确定圆弧"
+//
+// @Return uint64 "指令队列索引"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数为空
+//   - 点位坐标无效
+//   - 三点共线
+//   - 圆弧半径过大
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置ARC运动指令
+//	cmd := &ARCCmd{
+//	    Point1: Point{X: 200, Y: 0, Z: 0, R: 0},    // 第一个路径点
+//	    Point2: Point{X: 200, Y: 200, Z: 0, R: 0},  // 第二个路径点
+//	}
+//	index, err := dobot.SetARCCmd(cmd)
+//	if err != nil {
+//	    log.Printf("设置ARC运动指令失败: %v", err)
+//	} else {
+//	    log.Printf("ARC运动指令设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetARCCmd(cmd *ARCCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -2945,7 +3075,6 @@ func (dobot *Dobot) SetWAITCmd(cmd *WAITCmd, isQueued bool) (queuedCmdIndex uint
 	writer := &bytes.Buffer{}
 	binary.Write(writer, binary.LittleEndian, cmd)
 	message.Params = writer.Bytes()
-
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
