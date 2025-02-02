@@ -118,7 +118,7 @@ func (connector *Connector) Open(ctx context.Context, name string, baudrate uint
 	connector.messageQueue = make(chan *outMessage)
 	go connector.receiveGoRoutine(ctx)
 	go connector.processGoRoutine(ctx)
-
+	connector.messageQueue <- &outMessage{Message: &Message{Id: ProtocolQueuedCmdLeftSpace}}
 	return nil
 }
 
