@@ -2717,7 +2717,48 @@ func (dobot *Dobot) SetARCCmd(cmd *ARCCmd) (queuedCmdIndex uint64, err error) {
 	return queuedCmdIndex, nil
 }
 
-// SetCircleCmd 设置圆弧命令
+// SetCircleCmd 设置圆周运动命令
+// @Summary 设置机械臂圆周运动指令
+// @Description 发送圆周运动指令给机械臂。通过指定圆周运动的关键点和圈数，
+// @Description 控制机械臂执行完整的圆周运动。圆周由起点（当前位置）和两个
+// @Description 路径点确定，机械臂将按指定圈数重复运动。
+//
+// @Param cmd *CircleCmd true "圆周运动指令参数：
+//   - point1: 第一个路径点坐标（x,y,z,r）
+//   - point2: 第二个路径点坐标（x,y,z,r）
+//   - count: 圆周运动圈数
+//     注意：
+//   - 起点为机械臂当前位置
+//   - 三点不能共线，否则无法确定圆周
+//   - 圈数必须为正整数"
+//
+// @Return uint64 "指令队列索引"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数为空
+//   - 点位坐标无效
+//   - 三点共线
+//   - 圈数无效
+//   - 圆周半径过大
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置圆周运动指令，运动3圈
+//	cmd := &CircleCmd{
+//	    Point1: Point{X: 200, Y: 0, Z: 0, R: 0},    // 第一个路径点
+//	    Point2: Point{X: 200, Y: 200, Z: 0, R: 0},  // 第二个路径点
+//	    Count:  3,                                   // 运动3圈
+//	}
+//	index, err := dobot.SetCircleCmd(cmd)
+//	if err != nil {
+//	    log.Printf("设置圆周运动指令失败: %v", err)
+//	} else {
+//	    log.Printf("圆周运动指令设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -2745,6 +2786,41 @@ func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd) (queuedCmdIndex uint64, err err
 }
 
 // SetARCCommonParams 设置ARC通用参数
+// @Summary 设置机械臂ARC运动的通用参数
+// @Description 设置机械臂在ARC（圆弧）运动模式下的通用参数。这些参数用于
+// @Description 调整所有ARC运动的基本特性，如速度比例和加速度比例。合理的
+// @Description 参数设置可以优化运动性能和精度。
+//
+// @Param params *ARCCommonParams true "ARC通用参数：
+//   - velocityRatio: 速度比例（范围：0-100）
+//   - accelerationRatio: 加速度比例（范围：0-100）
+//     注意：
+//   - 比例值越大，实际运动速度和加速度越大
+//   - 设置过大可能影响运动精度"
+//
+// @Return uint64 "指令队列索引"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数为空
+//   - 比例值超出范围
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置ARC通用参数
+//	params := &ARCCommonParams{
+//	    VelocityRatio:     50,  // 速度比例50%
+//	    AccelerationRatio: 50,  // 加速度比例50%
+//	}
+//	index, err := dobot.SetARCCommonParams(params)
+//	if err != nil {
+//	    log.Printf("设置ARC通用参数失败: %v", err)
+//	} else {
+//	    log.Printf("ARC通用参数设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2758,7 +2834,6 @@ func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams) (queuedCmdIndex 
 	writer := &bytes.Buffer{}
 	binary.Write(writer, binary.LittleEndian, params)
 	message.Params = writer.Bytes()
-
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return 0, err
@@ -3357,12 +3432,43 @@ func (dobot *Dobot) SetColorSensor(enable bool, colorPort ColorPort, version uin
 }
 
 // GetColorSensor 获取颜色传感器数据
-// @Summary 获取颜色传感器数据
-// @Description 获取当前颜色传感器的RGB数值
-// @Success 200 {number} uint8 "返回R值"
-// @Success 200 {number} uint8 "返回G值"
-// @Success 200 {number} uint8 "返回B值"
-// @Failure 400 {object} error "获取颜色传感器数据失败时返回错误信息"
+// @Summary 获取机械臂颜色传感器的RGB数据
+// @Description 获取当前颜色传感器检测到的RGB颜色值。这些数据可用于
+// @Description 颜色识别、物体分类等应用。使用前需要确保颜色传感器已
+// @Description 正确配置并启用。
+//
+// @Return uint8 "R值：
+//   - 红色分量值
+//   - 范围：0-255"
+//
+// @Return uint8 "G值：
+//   - 绿色分量值
+//   - 范围：0-255"
+//
+// @Return uint8 "B值：
+//   - 蓝色分量值
+//   - 范围：0-255"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint8 "返回RGB三个分量值"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 传感器未启用
+//   - 传感器未连接
+//   - 通信错误
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取颜色传感器数据
+//	r, g, b, err := dobot.GetColorSensor()
+//	if err != nil {
+//	    log.Printf("获取颜色传感器数据失败: %v", err)
+//	} else {
+//	    log.Printf("当前检测到的颜色：")
+//	    log.Printf("  R: %d", r)
+//	    log.Printf("  G: %d", g)
+//	    log.Printf("  B: %d", b)
+//	}
 func (dobot *Dobot) GetColorSensor() (r, g, b uint8, err error) {
 	message := &Message{
 		Id:       ProtocolColorSensor,
@@ -3433,11 +3539,39 @@ func (dobot *Dobot) SetInfraredSensor(enable bool, infraredPort InfraredPort, ve
 }
 
 // GetInfraredSensor 获取红外传感器数据
-// @Summary 获取红外传感器数据
-// @Description 获取指定端口红外传感器的数据
-// @Param port query InfraredPort true "红外传感器端口"
-// @Success 200 {number} uint8 "返回红外传感器数据值"
-// @Failure 400 {object} error "获取红外传感器数据失败时返回错误信息"
+// @Summary 获取机械臂红外传感器的数据
+// @Description 获取指定端口红外传感器的检测数据。红外传感器可用于检测
+// @Description 物体的存在和距离，数据值通常与物体的距离或反射特性相关。
+// @Description 使用前需要确保红外传感器已正确配置并启用。
+//
+// @Param port InfraredPort true "红外传感器端口：
+//   - InfraredPort_PORT1: 端口1
+//   - InfraredPort_PORT2: 端口2
+//     注意：具体可用端口取决于机械臂型号"
+//
+// @Return uint8 "传感器数据：
+//   - 数值范围：0-255
+//   - 具体含义取决于传感器型号和应用场景
+//   - 通常值越大表示检测到的物体越近"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint8 "返回传感器数据值"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 传感器未启用
+//   - 传感器未连接
+//   - 端口无效
+//   - 通信错误
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取端口1的红外传感器数据
+//	value, err := dobot.GetInfraredSensor(InfraredPort_PORT1)
+//	if err != nil {
+//	    log.Printf("获取红外传感器数据失败: %v", err)
+//	} else {
+//	    log.Printf("当前红外传感器数据: %d", value)
+//	}
 func (dobot *Dobot) GetInfraredSensor(port InfraredPort) (uint8, error) {
 	message := &Message{
 		Id:       ProtocolInfraredSensor,
@@ -3750,15 +3884,33 @@ func (dobot *Dobot) GetLRHandCalibrateValue() (float32, error) {
 	return math.Float32frombits(binary.LittleEndian.Uint32(resp.Params[0:4])), nil
 }
 
-// SetQueuedCmdStartExec 执行Dobot命令
-// @Summary 开始执行指令队列
-// @Description 开始执行之前加入队列的所有指令。指令队列特点：
+// SetQueuedCmdStartExec 开始执行指令队列
+// @Summary 开始执行机械臂指令队列
+// @Description 开始执行之前加入队列的所有指令。指令队列具有以下特点：
 // @Description 1. 队列中的指令按照加入顺序依次执行
 // @Description 2. 每条指令执行完成后才会执行下一条指令
 // @Description 3. 可以随时暂停、继续或停止队列执行
+// @Description 4. 队列执行过程中可以继续添加新指令
 // @Description 注意：开始执行前确保队列中的指令是正确的，且机械臂处于使能状态
-// @Success 200 {string} "成功返回空字符串"
-// @Failure 400 {object} error "开始执行队列命令失败时返回错误信息"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "执行成功"
+// @Failure 400 {error} "执行失败，可能的错误：
+//   - 队列为空
+//   - 机械臂未使能
+//   - 机械臂处于报警状态
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 开始执行指令队列
+//	err := dobot.SetQueuedCmdStartExec()
+//	if err != nil {
+//	    log.Printf("开始执行指令队列失败: %v", err)
+//	} else {
+//	    log.Printf("指令队列开始执行")
+//	}
 func (dobot *Dobot) SetQueuedCmdStartExec() error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdStartExec,
@@ -3770,10 +3922,27 @@ func (dobot *Dobot) SetQueuedCmdStartExec() error {
 }
 
 // SetQueuedCmdStopExec 停止执行队列命令
-// @Summary 停止执行队列中的指令
-// @Description 停止执行队列中的指令，可以通过 SetQueuedCmdStartExec 重新开始执行
-// @Success 200 {string} "成功返回空字符串"
-// @Failure 400 {object} error "停止执行队列命令失败时返回错误信息"
+// @Summary 停止执行机械臂指令队列
+// @Description 停止执行当前正在执行的指令队列。停止后，机械臂将完成当前
+// @Description 正在执行的指令，然后暂停执行队列中的后续指令。可以通过
+// @Description SetQueuedCmdStartExec 重新开始执行队列。
+//
+// @Return error "错误信息"
+// @Success 200 {string} "停止成功"
+// @Failure 400 {error} "停止失败，可能的错误：
+//   - 队列未在执行
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 停止执行指令队列
+//	err := dobot.SetQueuedCmdStopExec()
+//	if err != nil {
+//	    log.Printf("停止执行指令队列失败: %v", err)
+//	} else {
+//	    log.Printf("指令队列已停止执行")
+//	}
 func (dobot *Dobot) SetQueuedCmdStopExec() error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdStopExec,
@@ -3785,10 +3954,27 @@ func (dobot *Dobot) SetQueuedCmdStopExec() error {
 }
 
 // SetQueuedCmdForceStopExec 强制停止执行队列命令
-// @Summary 强制停止执行队列中的指令
-// @Description 立即停止执行队列中的指令，与普通停止相比，强制停止会立即中断当前动作
-// @Success 200 {string} "成功返回空字符串"
-// @Failure 400 {object} error "强制停止队列命令失败时返回错误信息"
+// @Summary 强制停止执行机械臂指令队列
+// @Description 立即强制停止执行指令队列。与普通停止不同，强制停止会立即
+// @Description 中断当前正在执行的指令，机械臂可能会在当前位置突然停止。
+// @Description 仅在紧急情况下使用此功能。
+//
+// @Return error "错误信息"
+// @Success 200 {string} "强制停止成功"
+// @Failure 400 {error} "强制停止失败，可能的错误：
+//   - 队列未在执行
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 强制停止执行指令队列
+//	err := dobot.SetQueuedCmdForceStopExec()
+//	if err != nil {
+//	    log.Printf("强制停止指令队列失败: %v", err)
+//	} else {
+//	    log.Printf("指令队列已强制停止")
+//	}
 func (dobot *Dobot) SetQueuedCmdForceStopExec() error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdForceStopExec,
@@ -3800,12 +3986,39 @@ func (dobot *Dobot) SetQueuedCmdForceStopExec() error {
 }
 
 // SetQueuedCmdStartDownload 开始下载队列命令
-// @Summary 开始下载队列命令
-// @Description 通知机械臂开始下载命令队列，指定循环次数和每循环命令行数
-// @Param totalLoop query uint32 true "总循环次数"
-// @Param linePerLoop query uint32 true "每循环命令行数"
-// @Success 200 {string} "成功返回空字符串"
-// @Failure 400 {object} error "开始下载队列命令失败时返回错误信息"
+// @Summary 开始下载机械臂指令队列
+// @Description 通知机械臂开始下载指令队列。通过指定循环次数和每循环的
+// @Description 指令数量，可以实现指令队列的循环执行功能。这对于需要重复
+// @Description 执行的动作序列非常有用。
+//
+// @Param totalLoop uint32 true "总循环次数：
+//   - 指定指令队列需要循环执行的次数
+//   - 0表示无限循环
+//     注意：设置合理的循环次数以避免过度运行"
+//
+// @Param linePerLoop uint32 true "每循环指令行数：
+//   - 指定每次循环中要执行的指令数量
+//   - 必须小于等于队列中的总指令数
+//     注意：确保数量与实际队列指令数匹配"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "下载开始成功"
+// @Failure 400 {error} "下载失败，可能的错误：
+//   - 参数无效
+//   - 队列为空
+//   - 机械臂未就绪
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置指令队列循环执行3次，每次执行5条指令
+//	err := dobot.SetQueuedCmdStartDownload(3, 5)
+//	if err != nil {
+//	    log.Printf("开始下载指令队列失败: %v", err)
+//	} else {
+//	    log.Printf("指令队列开始下载")
+//	}
 func (dobot *Dobot) SetQueuedCmdStartDownload(totalLoop uint32, linePerLoop uint32) error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdStartDownload,
@@ -3822,10 +4035,27 @@ func (dobot *Dobot) SetQueuedCmdStartDownload(totalLoop uint32, linePerLoop uint
 }
 
 // SetQueuedCmdStopDownload 停止下载队列命令
-// @Summary 停止下载队列命令
-// @Description 通知机械臂停止下载命令队列
-// @Success 200 {string} "成功返回空字符串"
-// @Failure 400 {object} error "停止下载队列命令失败时返回错误信息"
+// @Summary 停止下载机械臂指令队列
+// @Description 通知机械臂停止下载指令队列。当需要中断正在进行的队列
+// @Description 下载过程时使用此功能。停止下载后，已下载的指令仍然保留
+// @Description 在队列中。
+//
+// @Return error "错误信息"
+// @Success 200 {string} "停止下载成功"
+// @Failure 400 {error} "停止失败，可能的错误：
+//   - 当前没有下载任务
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 停止下载指令队列
+//	err := dobot.SetQueuedCmdStopDownload()
+//	if err != nil {
+//	    log.Printf("停止下载指令队列失败: %v", err)
+//	} else {
+//	    log.Printf("指令队列下载已停止")
+//	}
 func (dobot *Dobot) SetQueuedCmdStopDownload() error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdStopDownload,
@@ -3837,10 +4067,27 @@ func (dobot *Dobot) SetQueuedCmdStopDownload() error {
 }
 
 // SetQueuedCmdClear 清除队列命令
-// @Summary 清除命令队列
-// @Description 清空机械臂命令队列中的所有指令
-// @Success 200 {string} "成功返回空字符串"
-// @Failure 400 {object} error "清除队列命令失败时返回错误信息"
+// @Summary 清除机械臂指令队列
+// @Description 清空机械臂指令队列中的所有指令。此操作会删除队列中所有
+// @Description 待执行的指令，包括已下载但尚未执行的指令。清除后，需要
+// @Description 重新添加指令才能执行新的动作序列。
+//
+// @Return error "错误信息"
+// @Success 200 {string} "清除成功"
+// @Failure 400 {error} "清除失败，可能的错误：
+//   - 队列正在执行
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 清除指令队列
+//	err := dobot.SetQueuedCmdClear()
+//	if err != nil {
+//	    log.Printf("清除指令队列失败: %v", err)
+//	} else {
+//	    log.Printf("指令队列已清除")
+//	}
 func (dobot *Dobot) SetQueuedCmdClear() error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdClear,
@@ -3851,6 +4098,31 @@ func (dobot *Dobot) SetQueuedCmdClear() error {
 	return err
 }
 
+// GetQueuedCmdLeftSpace 获取队列剩余空间
+// @Summary 获取机械臂指令队列的剩余空间
+// @Description 获取机械臂指令队列中还可以添加的指令数量。通过检查剩余
+// @Description 空间，可以避免队列溢出，确保所有指令都能被正确添加到队列中。
+//
+// @Return uint32 "剩余空间：
+//   - 返回队列中还可以添加的指令数量
+//   - 0表示队列已满，无法添加新指令"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint32 "返回剩余空间数量"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取队列剩余空间
+//	space, err := dobot.GetQueuedCmdLeftSpace()
+//	if err != nil {
+//	    log.Printf("获取队列剩余空间失败: %v", err)
+//	} else {
+//	    log.Printf("当前队列剩余空间: %d", space)
+//	}
 func (dobot *Dobot) GetQueuedCmdLeftSpace() (uint32, error) {
 	message := &Message{
 		Id:       ProtocolQueuedCmdLeftSpace,
@@ -3868,10 +4140,32 @@ func (dobot *Dobot) GetQueuedCmdLeftSpace() (uint32, error) {
 }
 
 // GetQueuedCmdCurrentIndex 获取当前队列命令索引
-// @Summary 获取当前命令索引
-// @Description 获取机械臂当前正在执行的命令队列索引
-// @Success 200 {number} uint64 "返回当前命令索引"
-// @Failure 400 {object} error "获取当前队列命令索引失败时返回错误信息"
+// @Summary 获取机械臂当前执行的指令索引
+// @Description 获取机械臂当前正在执行的指令队列索引。通过此索引可以
+// @Description 追踪指令的执行进度，了解当前执行到队列中的哪条指令。
+// @Description 对于调试和同步控制非常有用。
+//
+// @Return uint64 "当前指令索引：
+//   - 返回当前正在执行的指令在队列中的索引
+//   - 0表示队列尚未开始执行或已执行完毕"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回当前指令索引"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 队列未在执行
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取当前执行的指令索引
+//	index, err := dobot.GetQueuedCmdCurrentIndex()
+//	if err != nil {
+//	    log.Printf("获取当前指令索引失败: %v", err)
+//	} else {
+//	    log.Printf("当前执行的指令索引: %d", index)
+//	}
 func (dobot *Dobot) GetQueuedCmdCurrentIndex() (uint64, error) {
 	message := &Message{
 		Id:       ProtocolQueuedCmdCurrentIndex,
@@ -3889,6 +4183,34 @@ func (dobot *Dobot) GetQueuedCmdCurrentIndex() (uint64, error) {
 }
 
 // GetQueuedCmdMotionFinish 获取队列命令运动是否完成
+// @Summary 获取机械臂指令队列的执行状态
+// @Description 检查当前指令队列是否已完成执行。此函数可用于同步控制，
+// @Description 在需要等待当前动作完成后再执行下一步操作时特别有用。
+// @Description 建议定期轮询此状态以监控执行进度。
+//
+// @Return bool "执行完成状态：
+//   - true: 队列中的所有指令已执行完成
+//   - false: 队列仍在执行中"
+//
+// @Return error "错误信息"
+// @Success 200 {boolean} bool "返回执行完成状态"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 队列未启动
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 检查指令队列执行状态
+//	finished, err := dobot.GetQueuedCmdMotionFinish()
+//	if err != nil {
+//	    log.Printf("获取执行状态失败: %v", err)
+//	} else {
+//	    if finished {
+//	        log.Printf("指令队列已执行完成")
+//	    } else {
+//
 // @Summary 获取命令执行状态
 // @Description 检查当前队列命令是否已完成执行
 // @Success 200 {boolean} bool "返回运动是否完成"
@@ -3910,12 +4232,48 @@ func (dobot *Dobot) GetQueuedCmdMotionFinish() (bool, error) {
 }
 
 // SetPTPPOCmd 设置PTP并行输出命令
-// @Summary 设置PTP PO命令
-// @Description 通过PTPCmd及并行输出命令数组同时发送PTP运动及附加操作
-// @Param ptpCmd body *PTPCmd true "PTP命令结构体"
-// @Param parallelCmd body []ParallelOutputCmd true "并行输出命令数组"
-// @Success 200 {number} uint64 "返回命令队列索引"
-// @Failure 400 {object} error "设置PTP PO命令失败时返回错误信息"
+// @Summary 设置机械臂PTP运动和并行输出命令
+// @Description 通过PTP运动命令和并行输出命令数组同时控制机械臂运动和IO输出。
+// @Description 这种组合命令可以实现运动过程中的同步IO控制，适用于需要在
+// @Description 特定位置触发外部设备的应用场景。
+//
+// @Param ptpCmd *PTPCmd true "PTP运动命令参数：
+//   - 包含目标位置、速度等运动参数
+//   - 详细参数说明参见PTPCmd结构体定义
+//     注意：确保运动参数在安全范围内"
+//
+// @Param parallelCmd []ParallelOutputCmd true "并行输出命令数组：
+//   - 可以包含多个IO输出控制命令
+//   - 这些命令将在运动过程中按设定时序执行
+//     注意：命令数量不要过多，以免影响运动性能"
+//
+// @Return uint64 "指令队列索引"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数为空
+//   - 运动参数无效
+//   - 输出命令无效
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置PTP运动并在运动过程中控制IO输出
+//	ptpCmd := &PTPCmd{
+//	    PTPMode: 0,
+//	    X: 200, Y: 0, Z: 50, R: 0,
+//	}
+//	parallelCmd := []ParallelOutputCmd{
+//	    {Address: 1, Level: 1, Time: 500},  // 延时500ms后输出高电平
+//	}
+//	index, err := dobot.SetPTPPOCmd(ptpCmd, parallelCmd)
+//	if err != nil {
+//	    log.Printf("设置PTP并行输出命令失败: %v", err)
+//	} else {
+//	    log.Printf("PTP并行输出命令设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetPTPPOCmd(ptpCmd *PTPCmd, parallelCmd []ParallelOutputCmd) (queuedCmdIndex uint64, err error) {
 	if ptpCmd == nil {
 		return 0, errors.New("invalid params: ptpCmd is nil")
@@ -3944,12 +4302,51 @@ func (dobot *Dobot) SetPTPPOCmd(ptpCmd *PTPCmd, parallelCmd []ParallelOutputCmd)
 }
 
 // SetPTPPOWithLCmd 设置带L轴的PTP并行输出命令
-// @Summary 设置PTP PO with L命令
-// @Description 通过PTPWithLCmd结构体和并行输出命令数组发送带L参数的PTP命令
-// @Param ptpWithLCmd body *PTPWithLCmd true "带L参数的PTP命令结构体"
-// @Param parallelCmd body []ParallelOutputCmd true "并行输出命令数组"
-// @Success 200 {number} uint64 "返回命令队列索引"
-// @Failure 400 {object} error "设置带L并行输出PTP命令失败时返回错误信息"
+// @Summary 设置带L轴的机械臂PTP运动和并行输出命令
+// @Description 通过带L轴的PTP运动命令和并行输出命令数组同时控制机械臂运动
+// @Description 和IO输出。这种组合命令除了基本的PTP运动和IO控制外，还包含
+// @Description L轴（第五轴）的控制参数，适用于需要协调L轴运动的应用场景。
+//
+// @Param ptpWithLCmd *PTPWithLCmd true "带L轴的PTP运动命令参数：
+//   - 包含目标位置、速度等运动参数
+//   - 包含L轴的位置参数
+//   - 详细参数说明参见PTPWithLCmd结构体定义
+//     注意：确保所有轴的运动参数在安全范围内"
+//
+// @Param parallelCmd []ParallelOutputCmd true "并行输出命令数组：
+//   - 可以包含多个IO输出控制命令
+//   - 这些命令将在运动过程中按设定时序执行
+//     注意：命令数量不要过多，以免影响运动性能"
+//
+// @Return uint64 "指令队列索引"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数为空
+//   - 运动参数无效
+//   - L轴参数无效
+//   - 输出命令无效
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置带L轴的PTP运动并在运动过程中控制IO输出
+//	ptpCmd := &PTPWithLCmd{
+//	    PTPMode: 0,
+//	    X: 200, Y: 0, Z: 50, R: 0,
+//	    L: 90,  // L轴旋转到90度位置
+//	}
+//	parallelCmd := []ParallelOutputCmd{
+//	    {Address: 1, Level: 1, Time: 500},  // 延时500ms后输出高电平
+//	}
+//	index, err := dobot.SetPTPPOWithLCmd(ptpCmd, parallelCmd)
+//	if err != nil {
+//	    log.Printf("设置带L轴的PTP并行输出命令失败: %v", err)
+//	} else {
+//	    log.Printf("带L轴的PTP并行输出命令设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetPTPPOWithLCmd(ptpWithLCmd *PTPWithLCmd, parallelCmd []ParallelOutputCmd) (queuedCmdIndex uint64, err error) {
 	if ptpWithLCmd == nil {
 		return 0, errors.New("invalid params: ptpWithLCmd is nil")
@@ -3978,11 +4375,32 @@ func (dobot *Dobot) SetPTPPOWithLCmd(ptpWithLCmd *PTPWithLCmd, parallelCmd []Par
 }
 
 // SetWIFIConfigMode 设置WIFI配置模式
-// @Summary 设置WIFI配置模式
-// @Description 设置机械臂的WIFI配置模式，enable为true时启用配置
-// @Param enable query bool true "是否启用WIFI配置模式"
-// @Success 200 {string} "设置成功返回空字符串"
-// @Failure 400 {object} error "设置WIFI配置模式失败时返回错误信息"
+// @Summary 设置机械臂WIFI配置模式
+// @Description 设置机械臂的WIFI配置模式。启用配置模式后，可以对机械臂的
+// @Description WIFI连接参数进行设置，如SSID、密码等。完成配置后应及时
+// @Description 关闭配置模式以确保安全。
+//
+// @Param enable bool true "是否启用WIFI配置模式：
+//   - true: 启用配置模式
+//   - false: 关闭配置模式
+//     注意：配置完成后记得关闭配置模式"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "设置成功"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - WIFI模块未就绪
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 启用WIFI配置模式
+//	err := dobot.SetWIFIConfigMode(true)
+//	if err != nil {
+//	    log.Printf("设置WIFI配置模式失败: %v", err)
+//	} else {
+//	    log.Printf("WIFI配置模式已启用")
+//	}
 func (dobot *Dobot) SetWIFIConfigMode(enable bool) error {
 	message := &Message{
 		Id:       ProtocolWIFIConfigMode,
@@ -4000,10 +4418,36 @@ func (dobot *Dobot) SetWIFIConfigMode(enable bool) error {
 }
 
 // GetWIFIConfigMode 获取WIFI配置模式状态
-// @Summary 获取WIFI配置模式状态
-// @Description 获取当前机械臂的WIFI配置模式状态
+// @Summary 获取机械臂WIFI配置模式的状态
+// @Description 获取当前机械臂WIFI配置模式的启用状态。通过此函数可以
+// @Description 确认当前是否处于WIFI配置模式，以便进行相应的配置操作
+// @Description 或检查配置模式是否已正确关闭。
+//
+// @Return bool "配置模式状态：
+//   - true: 当前处于配置模式
+//   - false: 当前不在配置模式"
+//
+// @Return error "错误信息"
 // @Success 200 {boolean} bool "返回配置模式状态"
-// @Failure 400 {object} error "获取WIFI配置模式状态失败时返回错误信息"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - WIFI模块未就绪
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取WIFI配置模式状态
+//	enabled, err := dobot.GetWIFIConfigMode()
+//	if err != nil {
+//	    log.Printf("获取WIFI配置模式状态失败: %v", err)
+//	} else {
+//	    if enabled {
+//	        log.Printf("当前处于WIFI配置模式")
+//	    } else {
+//	        log.Printf("当前不在WIFI配置模式")
+//	    }
+//	}
 func (dobot *Dobot) GetWIFIConfigMode() (bool, error) {
 	message := &Message{
 		Id:       ProtocolWIFIConfigMode,
@@ -4021,11 +4465,35 @@ func (dobot *Dobot) GetWIFIConfigMode() (bool, error) {
 }
 
 // SetWIFISSID 设置WIFI SSID
-// @Summary 设置WIFI SSID
-// @Description 设置机械臂连接WIFI使用的SSID
-// @Param ssid query string true "WIFI网络SSID"
-// @Success 200 {string} "设置成功返回空字符串"
-// @Failure 400 {object} error "设置WIFI SSID失败时返回错误信息"
+// @Summary 设置机械臂WIFI网络的SSID
+// @Description 设置机械臂要连接的WIFI网络的SSID。此设置需要在WIFI配置
+// @Description 模式下进行。设置SSID后，还需要设置对应的密码才能完成
+// @Description WIFI网络的配置。
+//
+// @Param ssid string true "WIFI网络SSID：
+//   - 不能为空
+//   - 长度通常不超过32字符
+//   - 支持ASCII字符
+//     注意：确保SSID正确，否则无法连接网络"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "设置成功"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - SSID为空
+//   - SSID格式无效
+//   - 未处于配置模式
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置WIFI网络SSID
+//	err := dobot.SetWIFISSID("MyNetwork")
+//	if err != nil {
+//	    log.Printf("设置WIFI SSID失败: %v", err)
+//	} else {
+//	    log.Printf("WIFI SSID设置成功")
+//	}
 func (dobot *Dobot) SetWIFISSID(ssid string) error {
 	if ssid == "" {
 		return errors.New("invalid params: empty ssid")
@@ -4049,7 +4517,7 @@ func (dobot *Dobot) SetWIFISSID(ssid string) error {
 // @Summary 获取WIFI SSID
 // @Description 获取当前配置的WIFI网络SSID
 // @Success 200 {string} string "返回WIFI SSID"
-// @Failure 400 {object} error "获取WIFI SSID失败时返回错误信息"
+// @Failure 400 {error} "获取WIFI SSID失败时返回错误信息"
 func (dobot *Dobot) GetWIFISSID() (string, error) {
 	message := &Message{
 		Id:       ProtocolWIFISSID,
@@ -4064,11 +4532,36 @@ func (dobot *Dobot) GetWIFISSID() (string, error) {
 }
 
 // SetWIFIPassword 设置WIFI密码
-// @Summary 设置WIFI密码
-// @Description 设置机械臂连接WIFI使用的密码
-// @Param password query string true "WIFI网络密码"
-// @Success 200 {string} "设置成功返回空字符串"
-// @Failure 400 {object} error "设置WIFI密码失败时返回错误信息"
+// @Summary 设置机械臂WIFI网络的密码
+// @Description 设置机械臂要连接的WIFI网络的密码。此设置需要在WIFI配置
+// @Description 模式下进行，且应该在设置SSID之后进行。设置完成后，机械臂
+// @Description 将尝试使用这些凭据连接到指定的WIFI网络。
+//
+// @Param password string true "WIFI网络密码：
+//   - 不能为空
+//   - 长度通常在8-63字符之间
+//   - 支持ASCII字符
+//     注意：密码将以加密方式存储"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "设置成功"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 密码为空
+//   - 密码格式无效
+//   - 未处于配置模式
+//   - 未先设置SSID
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置WIFI网络密码
+//	err := dobot.SetWIFIPassword("MyPassword123")
+//	if err != nil {
+//	    log.Printf("设置WIFI密码失败: %v", err)
+//	} else {
+//	    log.Printf("WIFI密码设置成功")
+//	}
 func (dobot *Dobot) SetWIFIPassword(password string) error {
 	if password == "" {
 		return errors.New("invalid params: empty password")
