@@ -10,49 +10,129 @@ import (
 )
 
 // Dobot 机械臂控制结构
-// @Description Dobot Magician 机械臂的主控制结构体，封装了与机械臂通信和控制的所有功能
+// @Description Dobot Magician 机械臂的主控制结构体，封装了与机械臂通信和控制的所有功能。
+// @Description 该结构体提供了完整的机械臂控制接口，包括：
+// @Description  - 基础控制：连接、断开、重置等
+// @Description  - 运动控制：位置、姿态、关节角度等
+// @Description  - 末端控制：夹持器、吸盘、激光等
+// @Description  - IO控制：数字量、模拟量输入输出
+// @Description  - 传感器控制：红外、角度传感器等
+// @Description  - 队列控制：指令队列管理和同步
+// @Description  - 参数设置：设备信息、网络配置等
+//
+// @Field connector *Connector "通信连接器：
+//   - 负责与机械臂的底层通信
+//   - 管理消息的发送和接收
+//   - 处理通信协议和数据格式
+//     注意：通常不需要直接操作此字段"
+//
+// @Example
+//
+//	// 创建Dobot实例并建立连接
+//	dobot := NewDobot()
+//	err := dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
+//	if err != nil {
+//	    log.Fatal("连接失败:", err)
+//	}
+//	defer dobot.Disconnect()
+//
+//	// 获取设备信息
+//	info, _ := dobot.GetDeviceInfo()
+//	log.Printf("设备类型: %d", info.DeviceType)
+//
+//	// 控制机械臂运动
+//	dobot.SetPTPCmd(&PTPCmd{
+//	    PTPMode: PTPMode_MovJ,
+//	    X: 200, Y: 0, Z: 50, R: 0,
+//	})
 type Dobot struct {
 	connector *Connector
 }
 
 // NewDobot 创建新的Dobot实例
-// @Summary 创建新的Dobot控制实例
-// @Description 初始化并返回一个新的Dobot控制实例。该实例包含了所有控制机械臂所需的方法。
-// @Description 注意：创建实例后需要调用Connect方法与实际的机械臂建立连接才能使用。
-// @Return *Dobot "返回Dobot实例指针"
+// @Summary 创建新的机械臂控制实例
+// @Description 初始化并返回一个新的Dobot机械臂控制实例。该实例包含了
+// @Description 所有控制机械臂所需的方法。在使用任何控制功能之前，必须
+// @Description 先创建一个控制实例。
+//
+// @Return *Dobot "返回值说明：
+//   - 返回Dobot实例指针
+//   - 该实例用于后续所有的机械臂控制操作
+//     注意：创建实例后需要调用Connect方法建立连接"
+//
+// @Success 200 {object} *Dobot "返回Dobot实例"
+//
 // @Example
 //
+//	// 创建新的机械臂控制实例
 //	dobot := NewDobot()
-//	err := dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
+//	if dobot != nil {
+//	    // 创建成功，继续建立连接
+//	    err := dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
+//	    if err != nil {
+//	        log.Fatal("连接失败:", err)
+//	    }
+//	    log.Printf("机械臂控制实例创建并连接成功")
+//	}
 func NewDobot() *Dobot {
 	return &Dobot{connector: &Connector{}}
 }
 
 // ConnectDobot 连接到Dobot设备
-// @Summary 连接到Dobot设备
-// @Description 通过指定的串口和波特率连接到Dobot设备。
-// @Description 该函数会尝试打开指定的串口并建立与机械臂的通信连接。
-// @Description 连接成功后才能执行后续的控制命令。
-// @Param ctx context.Context true "上下文对象，用于超时控制和取消操作"
+// @Summary 建立与机械臂的通信连接
+// @Description 通过指定的串口和波特率连接到Dobot机械臂。此函数会尝试
+// @Description 打开指定的串口并建立与机械臂的通信连接。连接成功后才能
+// @Description 执行后续的控制命令。如果连接失败，需要检查串口设备是否
+// @Description 正确以及波特率设置是否匹配。
+//
+// @Param ctx context.Context true "上下文对象：
+//   - 用于控制连接超时和取消操作
+//   - 可以使用 context.Background() 创建"
+//
 // @Param portName string true "串口设备名称：
 //   - Windows系统：'COM1', 'COM2', ...
 //   - Linux系统：'/dev/ttyUSB0', '/dev/ttyACM0', ...
-//   - macOS系统：'/dev/cu.usbserial-*'"
+//   - macOS系统：'/dev/cu.usbserial-*'
+//     注意：确保有正确的串口访问权限"
 //
-// @Param baudrate uint32 true "串口通信波特率，标准值：115200"
+// @Param baudrate uint32 true "串口通信波特率：
+//   - 标准值：115200
+//   - 必须与机械臂设置匹配
+//     注意：不正确的波特率会导致通信错误"
+//
+// @Return error "错误信息"
 // @Success 200 {string} "连接成功"
 // @Failure 400 {error} "连接失败，可能的错误：
 //   - 串口不存在
 //   - 串口被占用
 //   - 波特率不支持
-//   - 通信超时"
+//   - 权限不足
+//   - 通信超时
+//   - 设备未就绪"
 //
 // @Example
 //
+//	// 连接到机械臂
 //	ctx := context.Background()
 //	err := dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
 //	if err != nil {
-//	    log.Fatal("连接失败:", err)
+//	    log.Printf("连接失败: %v", err)
+//	    // 检查串口设备和权限
+//	    return
+//	}
+//	log.Printf("成功连接到机械臂")
+//
+//	// 使用带超时的连接
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//	defer cancel()
+//	err = dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
+//	if err != nil {
+//	    if err == context.DeadlineExceeded {
+//	        log.Printf("连接超时")
+//	    } else {
+//	        log.Printf("连接失败: %v", err)
+//	    }
+//	    return
 //	}
 func (dobot *Dobot) Connect(ctx context.Context, portName string, baudrate uint32) error {
 	err := dobot.connector.Open(ctx, portName, baudrate)
@@ -63,25 +143,46 @@ func (dobot *Dobot) Connect(ctx context.Context, portName string, baudrate uint3
 }
 
 // SetDeviceSN 设置设备序列号
-// @Summary 设置Dobot设备序列号
-// @Description 为Dobot设备设置唯一的序列号标识。序列号用于区分不同的设备。
-// @Description 设置后的序列号将被永久保存在设备中。
-// @Param sn string true "要设置的序列号：
+// @Summary 设置机械臂设备序列号
+// @Description 为机械臂设置唯一的序列号标识。序列号用于区分不同的设备，
+// @Description 在多台机械臂同时使用的场景下特别有用。设置后的序列号将被
+// @Description 永久保存在设备中，重启后仍然有效。
+//
+// @Param sn string true "设备序列号：
 //   - 长度：必须小于64字符
 //   - 格式：字母、数字和特殊字符的组合
-//   - 建议：使用有意义的标识，如'DOBOT_001'"
+//   - 建议：使用有意义的标识，如'DOBOT_LAB_001'
+//     注意：序列号一旦设置通常不需要经常更改"
 //
+// @Return error "错误信息"
 // @Success 200 {string} "设置成功"
 // @Failure 400 {error} "设置失败，可能的错误：
 //   - 序列号为空
 //   - 序列号格式无效
-//   - 通信错误"
+//   - 序列号长度超出范围
+//   - 设备被锁定
+//   - 通信错误
+//   - 设备未连接"
 //
 // @Example
 //
+//	// 设置机械臂序列号
 //	err := dobot.SetDeviceSN("DOBOT_LAB_001")
 //	if err != nil {
 //	    log.Printf("设置序列号失败: %v", err)
+//	    return
+//	}
+//	log.Printf("序列号设置成功")
+//
+//	// 验证序列号设置
+//	sn, err := dobot.GetDeviceSN()
+//	if err != nil {
+//	    log.Printf("获取序列号失败: %v", err)
+//	    return
+//	}
+//	if sn != "DOBOT_LAB_001" {
+//	    log.Printf("序列号设置验证失败")
+//	    return
 //	}
 func (dobot *Dobot) SetDeviceSN(sn string) error {
 	if sn == "" {
@@ -101,21 +202,34 @@ func (dobot *Dobot) SetDeviceSN(sn string) error {
 }
 
 // GetDeviceSN 获取设备序列号
-// @Summary 获取Dobot设备序列号
-// @Description 获取当前连接的Dobot设备的序列号。
-// @Description 序列号是设备的唯一标识符。
-// @Return string "设备序列号"
-// @Return error "获取失败的错误信息"
+// @Summary 获取机械臂设备序列号
+// @Description 获取当前连接的机械臂设备的序列号。序列号是设备的唯一标识，
+// @Description 可用于区分不同的机械臂设备，也可用于验证设备身份或追踪
+// @Description 设备历史记录。
+//
+// @Return string "设备序列号：
+//   - 返回当前设备的序列号字符串
+//   - 如果设备未设置序列号，可能返回空字符串
+//     注意：序列号格式取决于之前的设置"
+//
+// @Return error "错误信息"
 // @Success 200 {string} "返回设备序列号"
 // @Failure 400 {error} "获取失败，可能的错误：
 //   - 设备未连接
-//   - 通信错误"
+//   - 通信错误
+//   - 响应数据无效
+//   - 设备信息读取失败"
 //
 // @Example
 //
+//	// 获取机械臂序列号
 //	sn, err := dobot.GetDeviceSN()
 //	if err != nil {
 //	    log.Printf("获取序列号失败: %v", err)
+//	    return
+//	}
+//	if sn == "" {
+//	    log.Printf("设备未设置序列号")
 //	} else {
 //	    log.Printf("设备序列号: %s", sn)
 //	}
@@ -201,13 +315,54 @@ func (dobot *Dobot) GetDeviceName() (string, error) {
 }
 
 // GetDeviceVersion 获取设备版本信息
-// @Summary 获取Dobot设备版本信息
-// @Description 获取当前连接的Dobot设备的固件版本信息
-// @Return majorVersion uint8 主版本号
-// @Return minorVersion uint8 次版本号
-// @Return revision uint8 修订版本号
-// @Return hwVersion uint8 硬件版本号
-// @Return error 获取过程中的错误信息，如果成功则返回 nil
+// @Summary 获取机械臂设备的版本信息
+// @Description 获取当前连接的机械臂设备的固件版本信息。版本信息包括
+// @Description 主版本号、次版本号、修订版本号和硬件版本号。这些信息
+// @Description 对于确保软件兼容性和故障诊断非常重要。
+//
+// @Return uint8 "主版本号：
+//   - 表示重大功能更新
+//   - 不同主版本可能不兼容"
+//
+// @Return uint8 "次版本号：
+//   - 表示功能改进或增强
+//   - 通常向后兼容"
+//
+// @Return uint8 "修订版本号：
+//   - 表示错误修复和小改动
+//   - 完全兼容"
+//
+// @Return uint8 "硬件版本号：
+//   - 表示硬件设计版本
+//   - 用于确定硬件兼容性"
+//
+// @Return error "错误信息"
+// @Success 200 {object} struct{majorVersion,minorVersion,revision,hwVersion uint8} "返回版本信息"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 设备未连接
+//   - 通信错误
+//   - 响应数据无效
+//   - 设备信息读取失败"
+//
+// @Example
+//
+//	// 获取机械臂版本信息
+//	major, minor, rev, hw, err := dobot.GetDeviceVersion()
+//	if err != nil {
+//	    log.Printf("获取版本信息失败: %v", err)
+//	    return
+//	}
+//	log.Printf("设备版本信息：")
+//	log.Printf("  主版本号: %d", major)
+//	log.Printf("  次版本号: %d", minor)
+//	log.Printf("  修订版本: %d", rev)
+//	log.Printf("  硬件版本: %d", hw)
+//
+//	// 检查版本兼容性
+//	if major != 1 {
+//	    log.Printf("警告：当前软件可能与该版本硬件不兼容")
+//	    return
+//	}
 func (dobot *Dobot) GetDeviceVersion() (majorVersion, minorVersion, revision, hwVersion uint8, err error) {
 	message := &Message{
 		Id:       ProtocolDeviceVersion,
@@ -223,6 +378,51 @@ func (dobot *Dobot) GetDeviceVersion() (majorVersion, minorVersion, revision, hw
 }
 
 // SetDeviceWithL 设置设备L轴
+// @Summary 设置机械臂L轴（第五轴）参数
+// @Description 设置机械臂是否启用L轴（第五轴）功能。L轴是机械臂的扩展轴，
+// @Description 可以提供额外的旋转自由度。启用L轴后，机械臂的运动规划和
+// @Description 控制将考虑L轴的参数。
+//
+// @Param isWithL bool true "是否启用L轴：
+//   - true: 启用L轴功能
+//   - false: 禁用L轴功能
+//     注意：启用L轴需要硬件支持"
+//
+// @Param version uint8 true "L轴版本号：
+//   - 用于适配不同版本的L轴硬件
+//   - 具体值参见产品手册
+//     注意：版本号必须与实际硬件匹配"
+//
+// @Return uint64 "指令队列索引"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 硬件不支持L轴
+//   - 版本号无效
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 启用L轴功能
+//	index, err := dobot.SetDeviceWithL(true, 1)
+//	if err != nil {
+//	    log.Printf("设置L轴失败: %v", err)
+//	    return
+//	}
+//	log.Printf("L轴功能已启用，指令索引: %d", index)
+//
+//	// 验证L轴状态
+//	enabled, err := dobot.GetDeviceWithL()
+//	if err != nil {
+//	    log.Printf("获取L轴状态失败: %v", err)
+//	    return
+//	}
+//	if !enabled {
+//	    log.Printf("L轴启用失败")
+//	    return
+//	}
 func (dobot *Dobot) SetDeviceWithL(isWithL bool, version uint8) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolDeviceWithL,
@@ -244,6 +444,35 @@ func (dobot *Dobot) SetDeviceWithL(isWithL bool, version uint8) (queuedCmdIndex 
 }
 
 // GetDeviceWithL 获取设备L轴状态
+// @Summary 获取机械臂L轴（第五轴）的启用状态
+// @Description 获取机械臂L轴（第五轴）功能的当前启用状态。通过此函数
+// @Description 可以确认L轴功能是否正确启用，以便进行后续的L轴相关操作。
+//
+// @Return bool "L轴状态：
+//   - true: L轴功能已启用
+//   - false: L轴功能未启用
+//     注意：状态与硬件支持和配置有关"
+//
+// @Return error "错误信息"
+// @Success 200 {boolean} bool "返回L轴启用状态"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取L轴状态
+//	enabled, err := dobot.GetDeviceWithL()
+//	if err != nil {
+//	    log.Printf("获取L轴状态失败: %v", err)
+//	    return
+//	}
+//	if enabled {
+//	    log.Printf("L轴功能已启用")
+//	} else {
+//	    log.Printf("L轴功能未启用")
+//	}
 func (dobot *Dobot) GetDeviceWithL() (bool, error) {
 	message := &Message{
 		Id:       ProtocolDeviceWithL,
@@ -259,6 +488,39 @@ func (dobot *Dobot) GetDeviceWithL() (bool, error) {
 }
 
 // GetDeviceTime 获取设备运行时间
+// @Summary 获取机械臂设备的运行时间
+// @Description 获取机械臂设备自上次启动以来的运行时间。此时间可用于
+// @Description 监控设备的工作时长，评估设备使用情况，以及进行维护计划。
+// @Description 时间从设备每次启动时开始计数。
+//
+// @Return uint32 "运行时间：
+//   - 单位：秒
+//   - 从设备启动开始计数
+//   - 关机后重置
+//     注意：此时间仅反映当次启动后的运行时长"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint32 "返回运行时间（秒）"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取设备运行时间
+//	seconds, err := dobot.GetDeviceTime()
+//	if err != nil {
+//	    log.Printf("获取运行时间失败: %v", err)
+//	    return
+//	}
+//	hours := float64(seconds) / 3600.0
+//	log.Printf("设备运行时间: %.2f小时", hours)
+//
+//	// 检查是否需要维护
+//	if hours > 100 {
+//	    log.Printf("提示：设备运行超过100小时，建议进行例行维护")
+//	}
 func (dobot *Dobot) GetDeviceTime() (uint32, error) {
 	message := &Message{
 		Id:       ProtocolDeviceTime,
@@ -274,15 +536,46 @@ func (dobot *Dobot) GetDeviceTime() (uint32, error) {
 }
 
 // GetDeviceInfo 获取设备信息
-// @Summary 获取机械臂设备信息
-// @Description 获取机械臂的设备信息，包括设备类型、运行时间、错误次数等统计信息
-// @Return *DeviceCountInfo 设备信息结构体指针，包含:
-// @Return *DeviceCountInfo.deviceType uint8 设备类型
-// @Return *DeviceCountInfo.runTime uint32 运行时间，单位秒
-// @Return *DeviceCountInfo.powerOnCount uint32 开机次数
-// @Return *DeviceCountInfo.errorCount uint32 错误次数
-// @Return *DeviceCountInfo.warningCount uint32 警告次数
-// @Return error 获取过程中的错误信息，如果成功则返回 nil
+// @Summary 获取机械臂设备的详细信息
+// @Description 获取机械臂设备的综合信息，包括设备类型、累计运行时间、
+// @Description 开机次数、错误次数和警告次数等统计信息。这些信息对于
+// @Description 设备维护、故障诊断和使用状况分析非常有用。
+//
+// @Return *DeviceCountInfo "设备信息结构体：
+//   - deviceType: 设备类型编号
+//   - runTime: 累计运行时间（单位：秒）
+//   - powerOnCount: 开机次数
+//   - errorCount: 错误次数
+//   - warningCount: 警告次数
+//     注意：这些统计信息在设备断电后仍然保留"
+//
+// @Return error "错误信息"
+// @Success 200 {object} *DeviceCountInfo "返回设备信息结构体"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效
+//   - 数据解析错误"
+//
+// @Example
+//
+//	// 获取设备详细信息
+//	info, err := dobot.GetDeviceInfo()
+//	if err != nil {
+//	    log.Printf("获取设备信息失败: %v", err)
+//	    return
+//	}
+//	log.Printf("设备信息：")
+//	log.Printf("  设备类型: %d", info.DeviceType)
+//	log.Printf("  运行时间: %.2f小时", float64(info.RunTime)/3600.0)
+//	log.Printf("  开机次数: %d", info.PowerOnCount)
+//	log.Printf("  错误次数: %d", info.ErrorCount)
+//	log.Printf("  警告次数: %d", info.WarningCount)
+//
+//	// 检查设备状态
+//	if info.ErrorCount > 10 {
+//	    log.Printf("警告：设备错误次数过多，建议进行检查")
+//	}
 func (dobot *Dobot) GetDeviceInfo() (*DeviceCountInfo, error) {
 	message := &Message{
 		Id:       ProtocolDeviceInfo,
@@ -300,14 +593,46 @@ func (dobot *Dobot) GetDeviceInfo() (*DeviceCountInfo, error) {
 
 // GetPose 获取当前位姿
 // @Summary 获取机械臂当前位姿信息
-// @Description 获取机械臂末端在笛卡尔坐标系下的位置和姿态信息，以及各关节的角度值
-// @Return *Pose 位姿结构体指针，包含:
-// @Return *Pose.x float32 末端在x轴方向的位置，单位mm
-// @Return *Pose.y float32 末端在y轴方向的位置，单位mm
-// @Return *Pose.z float32 末端在z轴方向的位置，单位mm
-// @Return *Pose.r float32 末端的旋转角度，单位度
-// @Return *Pose.jointAngle [4]float32 各关节的角度值，单位度
-// @Return error 获取过程中的错误信息，如果成功则返回 nil
+// @Description 获取机械臂末端在笛卡尔坐标系下的位置和姿态信息，以及各关节的角度值。
+// @Description 这些信息对于实时监控机械臂状态、轨迹规划和位置校准非常重要。
+// @Description 建议在执行运动指令前后获取位姿进行验证。
+//
+// @Return *Pose "位姿结构体：
+//   - x: X轴坐标（单位：mm）
+//   - y: Y轴坐标（单位：mm）
+//   - z: Z轴坐标（单位：mm）
+//   - r: 末端旋转角度（单位：度）
+//   - jointAngle: 各关节角度数组[4]（单位：度）
+//     注意：坐标值基于机械臂基座坐标系"
+//
+// @Return error "错误信息"
+// @Success 200 {object} *Pose "返回位姿信息结构体"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 传感器异常
+//   - 数据解析错误"
+//
+// @Example
+//
+//	// 获取当前位姿信息
+//	pose, err := dobot.GetPose()
+//	if err != nil {
+//	    log.Printf("获取位姿失败: %v", err)
+//	    return
+//	}
+//	log.Printf("当前位姿信息：")
+//	log.Printf("  位置: (%.2f, %.2f, %.2f) mm", pose.X, pose.Y, pose.Z)
+//	log.Printf("  旋转角度: %.2f°", pose.R)
+//	log.Printf("  关节角度:")
+//	for i, angle := range pose.JointAngle {
+//	    log.Printf("    关节%d: %.2f°", i+1, angle)
+//	}
+//
+//	// 检查位置是否在工作空间内
+//	if math.Sqrt(pose.X*pose.X + pose.Y*pose.Y) > 300 {
+//	    log.Printf("警告：当前位置接近工作空间边界")
+//	}
 func (dobot *Dobot) GetPose() (*Pose, error) {
 	message := &Message{
 		Id:       ProtocolGetPose,
@@ -324,13 +649,63 @@ func (dobot *Dobot) GetPose() (*Pose, error) {
 }
 
 // ResetPose 重置位姿
-// @Summary 重置机械臂位姿
-// @Description 根据是否手动模式和指定的后臂、前臂角度重置机械臂位姿
-// @Param manual query bool true "是否手动重置"
-// @Param rearArmAngle query float32 true "后臂角度，单位度"
-// @Param frontArmAngle query float32 true "前臂角度，单位度"
-// @Success 200 {string} "重置成功返回空字符串"
-// @Failure 400 {object} error "重置失败时返回错误信息"
+// @Summary 重置机械臂位姿到指定状态
+// @Description 将机械臂重置到指定的位姿状态。可以选择手动模式或自动模式，
+// @Description 并可以指定后臂和前臂的角度。此功能通常用于初始化机械臂位置
+// @Description 或在异常情况后恢复到已知状态。
+//
+// @Param manual bool true "重置模式：
+//   - true: 手动重置模式，使用指定的角度值
+//   - false: 自动重置模式，使用默认角度值
+//     注意：手动模式需要确保角度值安全可达"
+//
+// @Param rearArmAngle float32 true "后臂角度：
+//   - 单位：度（°）
+//   - 范围：通常在-90°到90°之间
+//   - 在手动模式下生效
+//     注意：角度值必须在机械臂可达范围内"
+//
+// @Param frontArmAngle float32 true "前臂角度：
+//   - 单位：度（°）
+//   - 范围：通常在-90°到90°之间
+//   - 在手动模式下生效
+//     注意：角度值必须在机械臂可达范围内"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "重置成功"
+// @Failure 400 {error} "重置失败，可能的错误：
+//   - 角度值超出范围
+//   - 位置不可达
+//   - 机械臂被锁定
+//   - 机械臂处于报警状态
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 使用自动模式重置位姿
+//	err := dobot.ResetPose(false, 0, 0)
+//	if err != nil {
+//	    log.Printf("自动重置位姿失败: %v", err)
+//	    return
+//	}
+//	log.Printf("位姿已自动重置")
+//
+//	// 使用手动模式重置到特定角度
+//	err = dobot.ResetPose(true, 45.0, 30.0)
+//	if err != nil {
+//	    log.Printf("手动重置位姿失败: %v", err)
+//	    return
+//	}
+//	log.Printf("位姿已重置到指定角度")
+//
+//	// 验证重置后的位姿
+//	pose, _ := dobot.GetPose()
+//	if pose != nil {
+//	    log.Printf("重置后的关节角度：")
+//	    log.Printf("  后臂: %.2f°", pose.JointAngle[1])
+//	    log.Printf("  前臂: %.2f°", pose.JointAngle[2])
+//	}
 func (dobot *Dobot) ResetPose(manual bool, rearArmAngle, frontArmAngle float32) error {
 	message := &Message{
 		Id:       ProtocolResetPose,
@@ -2434,12 +2809,48 @@ func (dobot *Dobot) SetCPParams(params *CPParams, isQueued bool) (queuedCmdIndex
 }
 
 // SetCPCmd 设置连续运动命令
-// @Summary 设置CPCmd命令
-// @Description 通过CPCmd结构体发送连续运动命令，定义运动路径
-// @Param cmd body *CPCmd true "CPCmd命令结构体"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint8 "返回命令队列索引"
-// @Failure 400 {object} error "设置CPCmd命令失败时返回错误信息"
+// @Summary 设置机械臂连续路径运动指令
+// @Description 通过CP（连续路径）运动命令控制机械臂执行连续轨迹运动。
+// @Description CP模式下，机械臂会按照设定的路径点平滑运动，适用于需要
+// @Description 连续轨迹的应用场景，如画线、涂胶等。
+//
+// @Param cmd *CPCmd true "CP运动命令参数：
+//   - cpMode: CP运动模式
+//   - x,y,z,r: 目标位置坐标
+//   - velocity: 运动速度
+//   - acceleration: 加速度
+//     注意：确保运动参数在安全范围内"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 将指令加入队列，按顺序执行
+//   - false: 立即执行该指令
+//   - 建议使用队列模式以确保运动连续性"
+//
+// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数为空
+//   - 运动参数无效
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置CP运动指令
+//	cmd := &CPCmd{
+//	    CPMode: 0,
+//	    X: 200, Y: 0, Z: 50, R: 0,
+//	    Velocity: 100,    // 速度100mm/s
+//	    Acceleration: 200, // 加速度200mm/s²
+//	}
+//	index, err := dobot.SetCPCmd(cmd, true)
+//	if err != nil {
+//	    log.Printf("设置CP运动指令失败: %v", err)
+//	} else {
+//	    log.Printf("CP运动指令设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetCPCmd(cmd *CPCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -2466,16 +2877,49 @@ func (dobot *Dobot) SetCPCmd(cmd *CPCmd, isQueued bool) (queuedCmdIndex uint64, 
 }
 
 // SetCPLECmd 设置连续运动扩展命令
-// @Summary 设置CPLE命令
-// @Description 通过cpMode及坐标参数发送连续运动扩展命令
-// @Param cpMode query uint8 true "连续运动模式"
-// @Param x query float32 true "目标x坐标"
-// @Param y query float32 true "目标y坐标"
-// @Param z query float32 true "目标z坐标"
-// @Param power query float32 true "功率参数"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint8 "返回命令队列索引"
-// @Failure 400 {object} error "设置CPLE命令失败时返回错误信息"
+// @Summary 设置机械臂连续路径运动扩展指令
+// @Description 通过CPLE（连续路径扩展）运动命令控制机械臂执行连续轨迹
+// @Description 运动。与基本CP命令相比，扩展命令增加了功率参数控制，可以
+// @Description 更精细地控制运动过程中的功率输出。
+//
+// @Param cpMode uint8 true "CP运动模式：
+//   - 用于指定连续路径运动的具体模式
+//   - 具体值含义参见产品手册"
+//
+// @Param x float32 true "目标X坐标（单位：mm）"
+// @Param y float32 true "目标Y坐标（单位：mm）"
+// @Param z float32 true "目标Z坐标（单位：mm）"
+// @Param power float32 true "功率参数：
+//   - 范围：0-100
+//   - 用于控制运动过程中的功率输出
+//     注意：功率设置过大可能影响运动精度"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 将指令加入队列，按顺序执行
+//   - false: 立即执行该指令
+//   - 建议使用队列模式以确保运动连续性"
+//
+// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数无效
+//   - 运动模式不支持
+//   - 坐标超出范围
+//   - 功率参数超出范围
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置CPLE运动指令
+//	index, err := dobot.SetCPLECmd(0, 200, 0, 50, 80, true)
+//	if err != nil {
+//	    log.Printf("设置CPLE运动指令失败: %v", err)
+//	} else {
+//	    log.Printf("CPLE运动指令设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetCPLECmd(cpMode uint8, x, y, z, power float32, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolCPLECmd,
@@ -2502,11 +2946,32 @@ func (dobot *Dobot) SetCPLECmd(cpMode uint8, x, y, z, power float32, isQueued bo
 }
 
 // SetCPRHoldEnable 设置CPR保持使能
-// @Summary 设置CP运动保持使能
-// @Description 设置是否启用CP模式下的保持功能
-// @Param isEnable query bool true "启用为true，禁用为false"
-// @Success 200 {string} "设置成功返回空字符串"
-// @Failure 400 {object} error "设置CPR保持使能失败时返回错误信息"
+// @Summary 设置机械臂CP运动保持功能的使能状态
+// @Description 设置机械臂在CP（连续路径）运动模式下保持功能的使能状态。
+// @Description CP运动保持功能可以让机械臂在CP运动过程中保持特定的状态或
+// @Description 参数，提高运动的稳定性和精确度。
+//
+// @Param isEnable bool true "是否启用CP运动保持功能：
+//   - true: 启用保持功能
+//   - false: 禁用保持功能
+//     注意：启用后可能会影响运动速度"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "设置成功"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 启用CP运动保持功能
+//	err := dobot.SetCPRHoldEnable(true)
+//	if err != nil {
+//	    log.Printf("设置CP运动保持功能失败: %v", err)
+//	} else {
+//	    log.Printf("CP运动保持功能已启用")
+//	}
 func (dobot *Dobot) SetCPRHoldEnable(isEnable bool) error {
 	message := &Message{
 		Id:       ProtocolCPRHoldEnable,
@@ -3719,12 +4184,38 @@ func (dobot *Dobot) GetInfraredSensor(port InfraredPort) (uint8, error) {
 }
 
 // SetAngleSensorStaticError 设置角度传感器静态误差
-// @Summary 设置角度传感器静态误差
-// @Description 为后臂和前臂角度传感器设置静态误差补偿值，单位为度
-// @Param rearArmAngleError query float32 true "后臂角度静态误差"
-// @Param frontArmAngleError query float32 true "前臂角度静态误差"
-// @Success 200 {string} "设置成功返回空字符串"
-// @Failure 400 {object} error "设置角度传感器静态误差失败时返回错误信息"
+// @Summary 设置机械臂关节角度传感器的静态误差补偿
+// @Description 设置机械臂后臂和前臂关节角度传感器的静态误差补偿值。
+// @Description 这些补偿值用于修正传感器的系统误差，提高角度测量的准确性。
+// @Description 通常在标定过程中设置，不建议随意修改。
+//
+// @Param rearArmAngleError float32 true "后臂角度静态误差：
+//   - 单位：度（°）
+//   - 范围：通常在±1°以内
+//     注意：补偿值过大可能表示传感器异常"
+//
+// @Param frontArmAngleError float32 true "前臂角度静态误差：
+//   - 单位：度（°）
+//   - 范围：通常在±1°以内
+//     注意：补偿值过大可能表示传感器异常"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "设置成功"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 补偿值超出范围
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置角度传感器静态误差补偿
+//	err := dobot.SetAngleSensorStaticError(0.1, 0.2)
+//	if err != nil {
+//	    log.Printf("设置角度传感器静态误差失败: %v", err)
+//	} else {
+//	    log.Printf("角度传感器静态误差设置成功")
+//	}
 func (dobot *Dobot) SetAngleSensorStaticError(rearArmAngleError, frontArmAngleError float32) error {
 	message := &Message{
 		Id:       ProtocolAngleSensorStaticError,
@@ -3741,11 +4232,39 @@ func (dobot *Dobot) SetAngleSensorStaticError(rearArmAngleError, frontArmAngleEr
 }
 
 // GetAngleSensorStaticError 获取角度传感器静态误差
-// @Summary 获取角度传感器静态误差
-// @Description 获取后臂和前臂角度传感器的静态误差补偿值
-// @Success 200 {number} float32 "返回后臂角度静态误差"
-// @Success 200 {number} float32 "返回前臂角度静态误差"
-// @Failure 400 {object} error "获取角度传感器静态误差失败时返回错误信息"
+// @Summary 获取机械臂关节角度传感器的静态误差补偿值
+// @Description 获取机械臂后臂和前臂关节角度传感器当前的静态误差补偿值。
+// @Description 通过查看当前的补偿值，可以了解传感器的校准状态。这些值
+// @Description 通常在标定时设置。
+//
+// @Return float32 "后臂角度静态误差：
+//   - 单位：度（°）
+//   - 范围：通常在±1°以内
+//     注意：补偿值过大可能表示传感器异常"
+//
+// @Return float32 "前臂角度静态误差：
+//   - 单位：度（°）
+//   - 范围：通常在±1°以内
+//     注意：补偿值过大可能表示传感器异常"
+//
+// @Return error "错误信息"
+// @Success 200 {number} float32 "返回后臂和前臂的角度静态误差补偿值"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取角度传感器静态误差补偿值
+//	rearError, frontError, err := dobot.GetAngleSensorStaticError()
+//	if err != nil {
+//	    log.Printf("获取角度传感器静态误差失败: %v", err)
+//	} else {
+//	    log.Printf("当前静态误差补偿值：")
+//	    log.Printf("  后臂: %.2f°", rearError)
+//	    log.Printf("  前臂: %.2f°", frontError)
+//	}
 func (dobot *Dobot) GetAngleSensorStaticError() (rearArmAngleError, frontArmAngleError float32, err error) {
 	message := &Message{
 		Id:       ProtocolAngleSensorStaticError,
@@ -3769,12 +4288,33 @@ func (dobot *Dobot) GetAngleSensorStaticError() (rearArmAngleError, frontArmAngl
 // @Description 校正传感器的线性误差，通过调整比例系数来提高角度测量的准确性。
 // @Description 通常在出厂标定时设置，不建议用户随意修改。
 //
-// @Summary 设置角度传感器系数
-// @Description 为校正角度传感器误差，通过设置后臂和前臂的比例系数
-// @Param rearArmAngleCoef query float32 true "后臂角度系数"
-// @Param frontArmAngleCoef query float32 true "前臂角度系数"
-// @Success 200 {string} "设置成功返回空字符串"
-// @Failure 400 {object} error "设置角度传感器系数失败时返回错误信息"
+// @Param rearArmAngleCoef float32 true "后臂角度系数：
+//   - 用于校正后臂角度传感器的线性误差
+//   - 范围：通常在0.9-1.1之间
+//     注意：系数偏离1过大可能表示传感器异常"
+//
+// @Param frontArmAngleCoef float32 true "前臂角度系数：
+//   - 用于校正前臂角度传感器的线性误差
+//   - 范围：通常在0.9-1.1之间
+//     注意：系数偏离1过大可能表示传感器异常"
+//
+// @Return error "错误信息"
+// @Success 200 {string} "设置成功"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 系数值超出范围
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置角度传感器校准系数
+//	err := dobot.SetAngleSensorCoef(1.02, 0.98)
+//	if err != nil {
+//	    log.Printf("设置角度传感器系数失败: %v", err)
+//	} else {
+//	    log.Printf("角度传感器系数设置成功")
+//	}
 func (dobot *Dobot) SetAngleSensorCoef(rearArmAngleCoef, frontArmAngleCoef float32) error {
 	message := &Message{
 		Id:       ProtocolAngleSensorCoef,
@@ -4339,11 +4879,9 @@ func (dobot *Dobot) GetQueuedCmdCurrentIndex() (uint64, error) {
 //	    if finished {
 //	        log.Printf("指令队列已执行完成")
 //	    } else {
-//
-// @Summary 获取命令执行状态
-// @Description 检查当前队列命令是否已完成执行
-// @Success 200 {boolean} bool "返回运动是否完成"
-// @Failure 400 {object} error "获取命令执行状态失败时返回错误信息"
+//	        log.Printf("指令队列仍在执行中")
+//	    }
+//	}
 func (dobot *Dobot) GetQueuedCmdMotionFinish() (bool, error) {
 	message := &Message{
 		Id:       ProtocolQueuedCmdMotionFinish,
@@ -4368,21 +4906,27 @@ func (dobot *Dobot) GetQueuedCmdMotionFinish() (bool, error) {
 //
 // @Param ptpCmd *PTPCmd true "PTP运动命令参数：
 //   - 包含目标位置、速度等运动参数
-//   - 详细参数说明参见PTPCmd结构体定义
-//     注意：确保运动参数在安全范围内"
+//   - PTPMode: PTP运动模式（0-4）
+//   - X,Y,Z: 目标位置坐标（单位：mm）
+//   - R: 末端旋转角度（单位：度）
+//     注意：确保运动参数在机械臂工作空间范围内"
 //
 // @Param parallelCmd []ParallelOutputCmd true "并行输出命令数组：
-//   - 可以包含多个IO输出控制命令
-//   - 这些命令将在运动过程中按设定时序执行
-//     注意：命令数量不要过多，以免影响运动性能"
+//   - Address: IO地址（0-255）
+//   - Level: 输出电平（0:低，1:高）
+//   - Time: 延时时间（单位：ms）
+//     注意：时间设置会影响运动执行效率"
 //
-// @Return uint64 "指令队列索引"
+// @Return uint64 "指令队列索引：
+//   - 用于跟踪命令执行状态
+//   - 可通过此索引查询命令是否完成"
+//
 // @Return error "错误信息"
 // @Success 200 {number} uint64 "返回指令队列索引"
 // @Failure 400 {error} "设置失败，可能的错误：
-//   - 参数为空
-//   - 运动参数无效
-//   - 输出命令无效
+//   - 参数为空或无效
+//   - 目标位置超出范围
+//   - IO地址无效
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
@@ -4391,7 +4935,7 @@ func (dobot *Dobot) GetQueuedCmdMotionFinish() (bool, error) {
 //
 //	// 设置PTP运动并在运动过程中控制IO输出
 //	ptpCmd := &PTPCmd{
-//	    PTPMode: 0,
+//	    PTPMode: PTPMode_MovJ,  // 关节运动模式
 //	    X: 200, Y: 0, Z: 50, R: 0,
 //	}
 //	parallelCmd := []ParallelOutputCmd{
@@ -4729,12 +5273,39 @@ func (dobot *Dobot) GetWIFIPassword() (string, error) {
 }
 
 // SetLostStepParams 设置丢步参数
-// @Summary 设置丢步参数
-// @Description 设置机械臂运动过程中丢步判断的阈值
-// @Param threshold query float32 true "丢步阈值"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint64 "返回命令队列索引"
-// @Failure 400 {object} error "设置丢步参数失败时返回错误信息"
+// @Summary 设置机械臂丢步检测参数
+// @Description 设置机械臂运动过程中丢步检测的阈值参数。丢步检测用于
+// @Description 监控机械臂运动精度，当检测到丢步超过阈值时，可以及时
+// @Description 进行校正，确保运动精度。
+//
+// @Param threshold float32 true "丢步检测阈值：
+//   - 单位：度（°）
+//   - 范围：通常在0.1-1.0之间
+//     注意：阈值过小可能导致误报，过大可能无法及时发现问题"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 将指令加入队列，按顺序执行
+//   - false: 立即执行该指令
+//   - 建议使用队列模式以确保参数设置顺序"
+//
+// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 阈值参数无效
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置丢步检测阈值为0.5度
+//	index, err := dobot.SetLostStepParams(0.5, true)
+//	if err != nil {
+//	    log.Printf("设置丢步参数失败: %v", err)
+//	} else {
+//	    log.Printf("丢步参数设置成功，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetLostStepParams(threshold float32, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolLostStepSet,
@@ -4759,11 +5330,34 @@ func (dobot *Dobot) SetLostStepParams(threshold float32, isQueued bool) (queuedC
 }
 
 // SetLostStepCmd 设置丢步命令
-// @Summary 设置丢步命令
-// @Description 发送丢步命令以校正运动过程中的丢步问题
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint64 "返回命令队列索引"
-// @Failure 400 {object} error "设置丢步命令失败时返回错误信息"
+// @Summary 发送机械臂丢步检测命令
+// @Description 发送丢步检测命令，触发机械臂执行丢步检测和校正操作。
+// @Description 当检测到丢步时，机械臂会自动进行位置校正，以确保运动
+// @Description 精度。建议在精度要求高的场合定期执行此命令。
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 将指令加入队列，按顺序执行
+//   - false: 立即执行该指令
+//   - 建议使用队列模式以确保检测时序"
+//
+// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令队列索引"
+// @Failure 400 {error} "执行失败，可能的错误：
+//   - 机械臂被锁定
+//   - 机械臂处于报警状态
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 执行丢步检测
+//	index, err := dobot.SetLostStepCmd(true)
+//	if err != nil {
+//	    log.Printf("执行丢步检测失败: %v", err)
+//	} else {
+//	    log.Printf("丢步检测命令已发送，指令索引: %d", index)
+//	}
 func (dobot *Dobot) SetLostStepCmd(isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolLostStepDetect,
