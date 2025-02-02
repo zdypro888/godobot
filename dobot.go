@@ -2492,32 +2492,34 @@ func (dobot *Dobot) GetPTPJointParams() (*PTPJointParams, error) {
 	return params, nil
 }
 
-// SetPTPCoordinateParams 设置PTP坐标参数
-// @Summary 设置PTP模式下的笛卡尔坐标运动参数
-// @Description 设置机械臂在PTP（点到点）模式下笛卡尔坐标系中的运动参数。
-// @Description 这些参数包括X、Y、Z轴的速度和加速度，以及姿态（R轴）的运动
-// @Description 参数，直接影响机械臂在点到点运动时的运动特性。
+// SetPTPCoordinateParams 设置PTP坐标运动参数
+// @Summary 设置机械臂PTP坐标运动的速度和加速度参数
+// @Description 设置机械臂在PTP（点到点）坐标运动模式下的速度和加速度参数。
+// @Description 这些参数直接影响机械臂在笛卡尔坐标系下运动的性能和轨迹特性。
+// @Description 合理的参数设置可以在保证运动精度的同时优化运动时间。
 //
-// @Param params *PTPCoordinateParams true "PTP坐标运动参数：
+// @Param params *PTPCoordinateParams true "坐标运动参数：
 //   - xyzVelocity: XYZ轴速度（单位：mm/s）
-//   - rVelocity: R轴速度（单位：°/s）
+//   - rVelocity: R轴旋转速度（单位：°/s）
 //   - xyzAcceleration: XYZ轴加速度（单位：mm/s²）
-//   - rAcceleration: R轴加速度（单位：°/s²）
-//     注意：参数设置不合理可能导致运动不稳定或耗时过长"
+//   - rAcceleration: R轴旋转加速度（单位：°/s²）
+//     注意：参数必须在机械臂规格范围内"
 //
 // @Param isQueued bool true "是否加入指令队列：
-//   - true: 将指令加入队列，按顺序执行
-//   - false: 立即执行该指令
-//   - 建议使用队列模式以确保参数设置顺序"
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保参数设置顺序"
 //
-// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
 // @Return error "错误信息"
-// @Success 200 {number} uint64 "返回指令队列索引"
+// @Success 200 {number} uint64 "返回指令索引"
 // @Failure 400 {error} "设置失败，可能的错误：
-//   - 参数为空
-//   - 参数值超出范围
+//   - 参数无效
+//   - 参数超出范围
 //   - 机械臂被锁定
-//   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
 //
@@ -2525,17 +2527,17 @@ func (dobot *Dobot) GetPTPJointParams() (*PTPJointParams, error) {
 //
 //	// 设置PTP坐标运动参数
 //	params := &PTPCoordinateParams{
-//	    XYZVelocity:      100,  // XYZ轴速度100mm/s
-//	    RVelocity:        50,   // R轴速度50°/s
-//	    XYZAcceleration:  200,  // XYZ轴加速度200mm/s²
-//	    RAcceleration:    100,  // R轴加速度100°/s²
+//	    XYZVelocity:     200,  // XYZ轴速度200mm/s
+//	    RVelocity:       100,  // R轴速度100°/s
+//	    XYZAcceleration: 800,  // XYZ轴加速度800mm/s²
+//	    RAcceleration:   400,  // R轴加速度400°/s²
 //	}
 //	index, err := dobot.SetPTPCoordinateParams(params, true)
 //	if err != nil {
-//	    log.Printf("设置PTP坐标参数失败: %v", err)
-//	} else {
-//	    log.Printf("PTP坐标参数设置成功，指令索引: %d", index)
+//	    log.Printf("设置PTP坐标运动参数失败: %v", err)
+//	    return
 //	}
+//	log.Printf("PTP坐标运动参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetPTPCoordinateParams(params *PTPCoordinateParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2563,11 +2565,39 @@ func (dobot *Dobot) SetPTPCoordinateParams(params *PTPCoordinateParams, isQueued
 	return queuedCmdIndex, nil
 }
 
-// GetPTPCoordinateParams 获取PTP坐标参数
-// @Summary 获取PTP坐标参数
-// @Description 获取当前PTP模式下笛卡尔坐标运动参数
-// @Success 200 {object} *PTPCoordinateParams "返回PTP坐标参数结构体"
-// @Failure 400 {object} error "获取PTP坐标参数失败时返回错误信息"
+// GetPTPCoordinateParams 获取PTP坐标运动参数
+// @Summary 获取机械臂PTP坐标运动的速度和加速度参数
+// @Description 获取机械臂在PTP（点到点）坐标运动模式下当前的速度和加速度
+// @Description 参数。通过这些参数可以了解机械臂在笛卡尔坐标系下的运动性能
+// @Description 配置，便于调整和优化运动控制。
+//
+// @Return *PTPCoordinateParams "坐标运动参数：
+//   - xyzVelocity: XYZ轴速度（单位：mm/s）
+//   - rVelocity: R轴旋转速度（单位：°/s）
+//   - xyzAcceleration: XYZ轴加速度（单位：mm/s²）
+//   - rAcceleration: R轴旋转加速度（单位：°/s²）
+//     注意：返回当前实际设置的参数值"
+//
+// @Return error "错误信息"
+// @Success 200 {object} *PTPCoordinateParams "返回坐标运动参数结构体"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取PTP坐标运动参数
+//	params, err := dobot.GetPTPCoordinateParams()
+//	if err != nil {
+//	    log.Printf("获取PTP坐标运动参数失败: %v", err)
+//	    return
+//	}
+//	log.Printf("当前PTP坐标运动参数：")
+//	log.Printf("  XYZ轴速度: %.1f mm/s", params.XYZVelocity)
+//	log.Printf("  R轴速度: %.1f °/s", params.RVelocity)
+//	log.Printf("  XYZ轴加速度: %.1f mm/s²", params.XYZAcceleration)
+//	log.Printf("  R轴加速度: %.1f °/s²", params.RAcceleration)
 func (dobot *Dobot) GetPTPCoordinateParams() (*PTPCoordinateParams, error) {
 	message := &Message{
 		Id:       ProtocolPTPCoordinateParams,
@@ -2589,30 +2619,32 @@ func (dobot *Dobot) GetPTPCoordinateParams() (*PTPCoordinateParams, error) {
 	return params, nil
 }
 
-// SetPTPLParams 设置PTPL参数
-// @Summary 设置PTP模式下的线性插补运动参数
-// @Description 设置机械臂在PTP（点到点）模式下的线性插补运动参数。这些参数
-// @Description 用于控制机械臂在直线运动时的速度和加速度特性，确保运动轨迹的
-// @Description 精确性和平滑性。
+// SetPTPLParams 设置PTPL运动参数
+// @Summary 设置机械臂PTPL运动的速度和加速度参数
+// @Description 设置机械臂在PTPL（点到点线性）运动模式下的速度和加速度参数。
+// @Description 这些参数直接影响机械臂在直线运动时的性能和轨迹特性。合理的
+// @Description 参数设置可以在保证运动精度的同时优化运动时间。
 //
 // @Param params *PTPLParams true "PTPL运动参数：
 //   - velocity: 速度（单位：mm/s）
 //   - acceleration: 加速度（单位：mm/s²）
-//     注意：参数设置不合理可能导致运动不稳定或耗时过长"
+//     注意：参数必须在机械臂规格范围内"
 //
 // @Param isQueued bool true "是否加入指令队列：
-//   - true: 将指令加入队列，按顺序执行
-//   - false: 立即执行该指令
-//   - 建议使用队列模式以确保参数设置顺序"
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保参数设置顺序"
 //
-// @Return uint64 "指令队列索引（当isQueued为true时有效）"
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
 // @Return error "错误信息"
-// @Success 200 {number} uint64 "返回指令队列索引"
+// @Success 200 {number} uint64 "返回指令索引"
 // @Failure 400 {error} "设置失败，可能的错误：
-//   - 参数为空
-//   - 参数值超出范围
+//   - 参数无效
+//   - 参数超出范围
 //   - 机械臂被锁定
-//   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
 //
@@ -2620,15 +2652,15 @@ func (dobot *Dobot) GetPTPCoordinateParams() (*PTPCoordinateParams, error) {
 //
 //	// 设置PTPL运动参数
 //	params := &PTPLParams{
-//	    Velocity:     100,  // 速度100mm/s
-//	    Acceleration: 200,  // 加速度200mm/s²
+//	    Velocity:     200,  // 速度200mm/s
+//	    Acceleration: 800,  // 加速度800mm/s²
 //	}
 //	index, err := dobot.SetPTPLParams(params, true)
 //	if err != nil {
-//	    log.Printf("设置PTPL参数失败: %v", err)
-//	} else {
-//	    log.Printf("PTPL参数设置成功，指令索引: %d", index)
+//	    log.Printf("设置PTPL运动参数失败: %v", err)
+//	    return
 //	}
+//	log.Printf("PTPL运动参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetPTPLParams(params *PTPLParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2656,35 +2688,35 @@ func (dobot *Dobot) SetPTPLParams(params *PTPLParams, isQueued bool) (queuedCmdI
 	return queuedCmdIndex, nil
 }
 
-// GetPTPLParams 获取PTPL参数
-// @Summary 获取PTP模式下的线性插补运动参数
-// @Description 获取机械臂在PTP（点到点）模式下的线性插补运动参数设置。
-// @Description 可用于确认当前的运动参数配置，或在修改参数前获取原始值作为
-// @Description 参考。返回的参数包括速度和加速度设置。
+// GetPTPLParams 获取PTPL运动参数
+// @Summary 获取机械臂PTPL运动的速度和加速度参数
+// @Description 获取机械臂在PTPL（点到点线性）运动模式下当前的速度和加速度
+// @Description 参数。通过这些参数可以了解机械臂在直线运动时的性能配置，
+// @Description 便于调整和优化运动控制。
 //
 // @Return *PTPLParams "PTPL运动参数：
 //   - velocity: 速度（单位：mm/s）
-//   - acceleration: 加速度（单位：mm/s²）"
+//   - acceleration: 加速度（单位：mm/s²）
+//     注意：返回当前实际设置的参数值"
 //
 // @Return error "错误信息"
 // @Success 200 {object} *PTPLParams "返回PTPL运动参数结构体"
 // @Failure 400 {error} "获取失败，可能的错误：
 //   - 通信错误
 //   - 设备未连接
-//   - 响应数据无效
-//   - 数据解析错误"
+//   - 响应数据无效"
 //
 // @Example
 //
-//	// 获取当前PTPL运动参数
+//	// 获取PTPL运动参数
 //	params, err := dobot.GetPTPLParams()
 //	if err != nil {
-//	    log.Printf("获取PTPL参数失败: %v", err)
-//	} else {
-//	    log.Printf("当前PTPL参数：")
-//	    log.Printf("  速度: %.2f mm/s", params.Velocity)
-//	    log.Printf("  加速度: %.2f mm/s²", params.Acceleration)
+//	    log.Printf("获取PTPL运动参数失败: %v", err)
+//	    return
 //	}
+//	log.Printf("当前PTPL运动参数：")
+//	log.Printf("  速度: %.1f mm/s", params.Velocity)
+//	log.Printf("  加速度: %.1f mm/s²", params.Acceleration)
 func (dobot *Dobot) GetPTPLParams() (*PTPLParams, error) {
 	message := &Message{
 		Id:       ProtocolPTPLParams,
@@ -2707,15 +2739,50 @@ func (dobot *Dobot) GetPTPLParams() (*PTPLParams, error) {
 }
 
 // SetPTPJumpParams 设置PTP跳跃参数
-// @Summary 设置PTP跳跃参数
-// @Description 通过PTPJumpParams结构体设置跳跃运动参数
-// @Param params body *PTPJumpParams true "PTP跳跃参数结构体"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint8 "返回命令队列索引"
-// @Failure 400 {object} error "设置PTP跳跃参数失败时返回错误信息"
+// @Summary 设置机械臂PTP跳跃运动的参数
+// @Description 设置机械臂在PTP跳跃模式下的运动参数。跳跃模式是一种特殊的
+// @Description 运动模式，机械臂会先抬升到指定高度，然后平移到目标位置上方，
+// @Description 最后下降到目标位置。这种模式适用于需要避开中间障碍物的场景。
+//
+// @Param params *PTPJumpParams true "跳跃运动参数：
+//   - jumpHeight: 跳跃高度（单位：mm）
+//   - zLimit: Z轴限位（单位：mm）
+//     注意：确保参数设置合理，避免碰撞"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保参数设置顺序"
+//
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数无效
+//   - 参数超出范围
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置PTP跳跃参数
+//	params := &PTPJumpParams{
+//	    JumpHeight: 50,   // 跳跃高度50mm
+//	    ZLimit:     200,  // Z轴限位200mm
+//	}
+//	index, err := dobot.SetPTPJumpParams(params, true)
+//	if err != nil {
+//	    log.Printf("设置PTP跳跃参数失败: %v", err)
+//	    return
+//	}
+//	log.Printf("PTP跳跃参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetPTPJumpParams(params *PTPJumpParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
-		return 0, errors.New("invalid params: params is nil")
+		return 0, errors.New("invalid para dms: params is nil")
 	}
 
 	message := &Message{
@@ -2741,10 +2808,34 @@ func (dobot *Dobot) SetPTPJumpParams(params *PTPJumpParams, isQueued bool) (queu
 }
 
 // GetPTPJumpParams 获取PTP跳跃参数
-// @Summary 获取PTP跳跃参数
-// @Description 获取当前PTP跳跃模式下的参数
-// @Success 200 {object} *PTPJumpParams "返回PTP跳跃参数结构体"
-// @Failure 400 {object} error "获取PTP跳跃参数失败时返回错误信息"
+// @Summary 获取机械臂PTP跳跃运动的参数
+// @Description 获取机械臂在PTP跳跃模式下当前的运动参数。通过这些参数可以
+// @Description 了解机械臂在跳跃运动时的高度和限位设置，便于调整和优化运动
+// @Description 轨迹。
+//
+// @Return *PTPJumpParams "跳跃运动参数：
+//   - jumpHeight: 跳跃高度（单位：mm）
+//   - zLimit: Z轴限位（单位：mm）
+//     注意：返回当前实际设置的参数值"
+//
+// @Return error "错误信息"
+// @Success 200 {object} *PTPJumpParams "返回跳跃运动参数结构体"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取PTP跳跃参数
+//	params, err := dobot.GetPTPJumpParams()
+//	if err != nil {
+//	    log.Printf("获取PTP跳跃参数失败: %v", err)
+//	    return
+//	}
+//	log.Printf("当前PTP跳跃参数：")
+//	log.Printf("  跳跃高度: %.1f mm", params.JumpHeight)
+//	log.Printf("  Z轴限位: %.1f mm", params.ZLimit)
 func (dobot *Dobot) GetPTPJumpParams() (*PTPJumpParams, error) {
 	message := &Message{
 		Id:       ProtocolPTPJumpParams,
@@ -2767,12 +2858,49 @@ func (dobot *Dobot) GetPTPJumpParams() (*PTPJumpParams, error) {
 }
 
 // SetPTPJump2Params 设置PTP跳跃2参数
-// @Summary 设置PTP跳跃2参数
-// @Description 通过PTPJump2Params结构体设置跳跃2运动模式参数
-// @Param params body *PTPJump2Params true "PTP跳跃2参数结构体"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint8 "返回命令队列索引"
-// @Failure 400 {object} error "设置PTP跳跃2参数失败时返回错误信息"
+// @Summary 设置机械臂PTP跳跃2运动的参数
+// @Description 设置机械臂在PTP跳跃2模式下的运动参数。跳跃2模式是跳跃模式
+// @Description 的扩展，允许设置更多的参数来精确控制跳跃轨迹。这种模式提供
+// @Description 了更灵活的障碍物避让能力。
+//
+// @Param params *PTPJump2Params true "跳跃2运动参数：
+//   - startJumpHeight: 起点跳跃高度（单位：mm）
+//   - endJumpHeight: 终点跳跃高度（单位：mm）
+//   - zLimit: Z轴限位（单位：mm）
+//     注意：确保参数设置合理，避免碰撞"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保参数设置顺序"
+//
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数无效
+//   - 参数超出范围
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置PTP跳跃2参数
+//	params := &PTPJump2Params{
+//	    StartJumpHeight: 30,   // 起点跳跃高度30mm
+//	    EndJumpHeight:   50,   // 终点跳跃高度50mm
+//	    ZLimit:          200,  // Z轴限位200mm
+//	}
+//	index, err := dobot.SetPTPJump2Params(params, true)
+//	if err != nil {
+//	    log.Printf("设置PTP跳跃2参数失败: %v", err)
+//	    return
+//	}
+//	log.Printf("PTP跳跃2参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetPTPJump2Params(params *PTPJump2Params, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2801,10 +2929,36 @@ func (dobot *Dobot) SetPTPJump2Params(params *PTPJump2Params, isQueued bool) (qu
 }
 
 // GetPTPJump2Params 获取PTP跳跃2参数
-// @Summary 获取PTP跳跃2参数
-// @Description 获取当前PTP跳跃2模式下的参数
-// @Success 200 {object} *PTPJump2Params "返回PTP跳跃2参数结构体"
-// @Failure 400 {object} error "获取PTP跳跃2参数失败时返回错误信息"
+// @Summary 获取机械臂PTP跳跃2运动的参数
+// @Description 获取机械臂在PTP跳跃2模式下当前的运动参数。通过这些参数可以
+// @Description 了解机械臂在跳跃运动时的起点和终点高度设置，以及限位设置，
+// @Description 便于调整和优化运动轨迹。
+//
+// @Return *PTPJump2Params "跳跃2运动参数：
+//   - startJumpHeight: 起点跳跃高度（单位：mm）
+//   - endJumpHeight: 终点跳跃高度（单位：mm）
+//   - zLimit: Z轴限位（单位：mm）
+//     注意：返回当前实际设置的参数值"
+//
+// @Return error "错误信息"
+// @Success 200 {object} *PTPJump2Params "返回跳跃2运动参数结构体"
+// @Failure 400 {error} "获取失败，可能的错误：
+//   - 通信错误
+//   - 设备未连接
+//   - 响应数据无效"
+//
+// @Example
+//
+//	// 获取PTP跳跃2参数
+//	params, err := dobot.GetPTPJump2Params()
+//	if err != nil {
+//	    log.Printf("获取PTP跳跃2参数失败: %v", err)
+//	    return
+//	}
+//	log.Printf("当前PTP跳跃2参数：")
+//	log.Printf("  起点跳跃高度: %.1f mm", params.StartJumpHeight)
+//	log.Printf("  终点跳跃高度: %.1f mm", params.EndJumpHeight)
+//	log.Printf("  Z轴限位: %.1f mm", params.ZLimit)
 func (dobot *Dobot) GetPTPJump2Params() (*PTPJump2Params, error) {
 	message := &Message{
 		Id:       ProtocolPTPJump2Params,
@@ -2827,12 +2981,47 @@ func (dobot *Dobot) GetPTPJump2Params() (*PTPJump2Params, error) {
 }
 
 // SetPTPCommonParams 设置PTP通用参数
-// @Summary 设置PTP共通参数
-// @Description 通过PTPCommonParams结构体设置所有PTP运动模式的共通参数
-// @Param params body *PTPCommonParams true "PTP共通参数结构体"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint8 "返回命令队列索引"
-// @Failure 400 {object} error "设置PTP共通参数失败时返回错误信息"
+// @Summary 设置机械臂PTP运动的通用参数
+// @Description 设置机械臂在PTP（点到点）运动模式下的通用参数。这些参数
+// @Description 会影响所有PTP运动模式（包括关节运动、直线运动等）的基本
+// @Description 特性，如运动的平滑度和响应性。
+//
+// @Param params *PTPCommonParams true "PTP通用参数：
+//   - velocityRatio: 速度比例，范围[0-100]
+//   - accelerationRatio: 加速度比例，范围[0-100]
+//     注意：参数设置过大可能导致运动不稳定，建议从小到大逐步调整"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保参数设置顺序"
+//
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令索引"
+// @Failure 400 {error} "设置失败，可能的错误：
+//   - 参数无效
+//   - 参数超出范围
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 设置PTP通用运动参数
+//	params := &PTPCommonParams{
+//	    VelocityRatio:     50,  // 速度比例50%
+//	    AccelerationRatio: 50,  // 加速度比例50%
+//	}
+//	index, err := dobot.SetPTPCommonParams(params, true)
+//	if err != nil {
+//	    log.Printf("设置PTP通用参数失败: %v", err)
+//	    return
+//	}
+//	log.Printf("PTP通用参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetPTPCommonParams(params *PTPCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2911,13 +3100,64 @@ func (dobot *Dobot) SetPTPCmd(cmd *PTPCmd, isQueued bool) (queuedCmdIndex uint64
 	return queuedCmdIndex, nil
 }
 
-// SetPTPWithLCmd 设置带L轴的PTP命令
-// @Summary 设置带L参数的PTP命令
-// @Description 通过PTPWithLCmd结构体发送带L参数的PTP命令，用于长臂补偿
-// @Param cmd body *PTPWithLCmd true "带L参数的PTP命令结构体"
-// @Param isQueued query bool true "是否队列执行"
-// @Success 200 {number} uint8 "返回命令队列索引"
-// @Failure 400 {object} error "设置PTP带L命令失败时返回错误信息"
+// SetPTPWithLCmd 设置带L轴的PTP运动指令
+// @Summary 设置带L轴的机械臂PTP运动指令
+// @Description 控制带有L轴（第五轴）的机械臂执行PTP（点到点）运动。除了
+// @Description 标准的XYZ和R轴运动外，还可以控制L轴的位置。这适用于需要
+// @Description 额外自由度的应用场景。
+//
+// @Param cmd *PTPWithLCmd true "PTP运动指令参数：
+//   - ptpMode: 运动模式（MOVJ/MOVL/JUMP/JUMPXY）
+//   - x: X轴目标位置（单位：mm）
+//   - y: Y轴目标位置（单位：mm）
+//   - z: Z轴目标位置（单位：mm）
+//   - r: R轴目标角度（单位：度）
+//   - l: L轴目标位置（单位：mm）
+//     注意：确保目标位置在工作空间内"
+//
+// @Param isQueued bool true "是否加入指令队列：
+//   - true: 指令加入队列，按顺序执行
+//   - false: 立即执行指令
+//     注意：建议使用队列模式以确保运动顺序"
+//
+// @Return uint64 "指令索引：
+//   - 返回指令队列索引
+//   - 仅在isQueued为true时有效"
+//
+// @Return error "错误信息"
+// @Success 200 {number} uint64 "返回指令索引"
+// @Failure 400 {error} "执行失败，可能的错误：
+//   - 参数无效
+//   - 目标位置不可达
+//   - L轴未启用
+//   - 机械臂被锁定
+//   - 通信错误
+//   - 设备未连接"
+//
+// @Example
+//
+//	// 执行带L轴的点到点运动
+//	cmd := &PTPWithLCmd{
+//	    PTPMode: PTPMode_MOVJ,           // 关节运动模式
+//	    X: 200, Y: 0, Z: 100, R: 0,      // 目标位置和姿态
+//	    L: 50,                           // L轴目标位置
+//	}
+//	index, err := dobot.SetPTPWithLCmd(cmd, true)
+//	if err != nil {
+//	    log.Printf("执行带L轴的PTP运动失败: %v", err)
+//	    return
+//	}
+//	log.Printf("带L轴的PTP运动开始执行，指令索引: %d", index)
+//
+//	// 等待运动完成
+//	for {
+//	    finished, _ := dobot.GetQueuedCmdMotionFinish()
+//	    if finished {
+//	        log.Printf("带L轴的PTP运动完成")
+//	        break
+//	    }
+//	    time.Sleep(100 * time.Millisecond)
+//	}
 func (dobot *Dobot) SetPTPWithLCmd(cmd *PTPWithLCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
