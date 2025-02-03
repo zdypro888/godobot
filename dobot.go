@@ -74,31 +74,6 @@ func NewDobot() *Dobot {
 //   - 权限不足
 //   - 通信超时
 //   - 设备未就绪"
-//
-// @Example
-//
-//	// 连接到机械臂
-//	ctx := context.Background()
-//	err := dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
-//	if err != nil {
-//	    log.Printf("连接失败: %v", err)
-//	    // 检查串口设备和权限
-//	    return
-//	}
-//	log.Printf("成功连接到机械臂")
-//
-//	// 使用带超时的连接
-//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-//	defer cancel()
-//	err = dobot.Connect(ctx, "/dev/ttyUSB0", 115200)
-//	if err != nil {
-//	    if err == context.DeadlineExceeded {
-//	        log.Printf("连接超时")
-//	    } else {
-//	        log.Printf("连接失败: %v", err)
-//	    }
-//	    return
-//	}
 func (dobot *Dobot) Connect(ctx context.Context, portName string, baudrate uint32) error {
 	err := dobot.connector.Open(ctx, portName, baudrate)
 	if err != nil {
@@ -128,27 +103,6 @@ func (dobot *Dobot) Connect(ctx context.Context, portName string, baudrate uint3
 //   - 设备被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置机械臂序列号
-//	err := dobot.SetDeviceSN("DOBOT_LAB_001")
-//	if err != nil {
-//	    log.Printf("设置序列号失败: %v", err)
-//	    return
-//	}
-//	log.Printf("序列号设置成功")
-//
-//	// 验证序列号设置
-//	sn, err := dobot.GetDeviceSN()
-//	if err != nil {
-//	    log.Printf("获取序列号失败: %v", err)
-//	    return
-//	}
-//	if sn != "DOBOT_LAB_001" {
-//	    log.Printf("序列号设置验证失败")
-//	    return
-//	}
 func (dobot *Dobot) SetDeviceSN(ctx context.Context, sn string) error {
 	if sn == "" {
 		return errors.New("invalid params: empty sn")
@@ -184,20 +138,6 @@ func (dobot *Dobot) SetDeviceSN(ctx context.Context, sn string) error {
 //   - 通信错误
 //   - 响应数据无效
 //   - 设备信息读取失败"
-//
-// @Example
-//
-//	// 获取机械臂序列号
-//	sn, err := dobot.GetDeviceSN()
-//	if err != nil {
-//	    log.Printf("获取序列号失败: %v", err)
-//	    return
-//	}
-//	if sn == "" {
-//	    log.Printf("设备未设置序列号")
-//	} else {
-//	    log.Printf("设备序列号: %s", sn)
-//	}
 func (dobot *Dobot) GetDeviceSN(ctx context.Context) (string, error) {
 	message := &Message{
 		Id:       ProtocolDeviceSN,
@@ -225,13 +165,6 @@ func (dobot *Dobot) GetDeviceSN(ctx context.Context) (string, error) {
 //   - 名称为空
 //   - 名称格式无效
 //   - 通信错误"
-//
-// @Example
-//
-//	err := dobot.SetDeviceName("实验室机械臂1号")
-//	if err != nil {
-//	    log.Printf("设置设备名称失败: %v", err)
-//	}
 func (dobot *Dobot) SetDeviceName(ctx context.Context, name string) error {
 	if name == "" {
 		return errors.New("invalid params: empty name")
@@ -257,15 +190,6 @@ func (dobot *Dobot) SetDeviceName(ctx context.Context, name string) error {
 // @Failure 400 {error} "获取失败，可能的错误：
 //   - 设备未连接
 //   - 通信错误"
-//
-// @Example
-//
-//	name, err := dobot.GetDeviceName()
-//	if err != nil {
-//	    log.Printf("获取设备名称失败: %v", err)
-//	} else {
-//	    log.Printf("设备名称: %s", name)
-//	}
 func (dobot *Dobot) GetDeviceName(ctx context.Context) (string, error) {
 	message := &Message{
 		Id:       ProtocolDeviceName,
@@ -308,26 +232,6 @@ func (dobot *Dobot) GetDeviceName(ctx context.Context) (string, error) {
 //   - 通信错误
 //   - 响应数据无效
 //   - 设备信息读取失败"
-//
-// @Example
-//
-//	// 获取机械臂版本信息
-//	major, minor, rev, hw, err := dobot.GetDeviceVersion()
-//	if err != nil {
-//	    log.Printf("获取版本信息失败: %v", err)
-//	    return
-//	}
-//	log.Printf("设备版本信息：")
-//	log.Printf("  主版本号: %d", major)
-//	log.Printf("  次版本号: %d", minor)
-//	log.Printf("  修订版本: %d", rev)
-//	log.Printf("  硬件版本: %d", hw)
-//
-//	// 检查版本兼容性
-//	if major != 1 {
-//	    log.Printf("警告：当前软件可能与该版本硬件不兼容")
-//	    return
-//	}
 func (dobot *Dobot) GetDeviceVersion(ctx context.Context) (majorVersion, minorVersion, revision, hwVersion uint8, err error) {
 	message := &Message{
 		Id:       ProtocolDeviceVersion,
@@ -366,27 +270,6 @@ func (dobot *Dobot) GetDeviceVersion(ctx context.Context) (majorVersion, minorVe
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 启用L轴功能
-//	index, err := dobot.SetDeviceWithL(true, 1)
-//	if err != nil {
-//	    log.Printf("设置L轴失败: %v", err)
-//	    return
-//	}
-//	log.Printf("L轴功能已启用，指令索引: %d", index)
-//
-//	// 验证L轴状态
-//	enabled, err := dobot.GetDeviceWithL()
-//	if err != nil {
-//	    log.Printf("获取L轴状态失败: %v", err)
-//	    return
-//	}
-//	if !enabled {
-//	    log.Printf("L轴启用失败")
-//	    return
-//	}
 func (dobot *Dobot) SetDeviceWithL(ctx context.Context, isWithL bool, version uint8) (uint64, error) {
 	message := &Message{
 		Id:       ProtocolDeviceWithL,
@@ -421,20 +304,6 @@ func (dobot *Dobot) SetDeviceWithL(ctx context.Context, isWithL bool, version ui
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取L轴状态
-//	enabled, err := dobot.GetDeviceWithL()
-//	if err != nil {
-//	    log.Printf("获取L轴状态失败: %v", err)
-//	    return
-//	}
-//	if enabled {
-//	    log.Printf("L轴功能已启用")
-//	} else {
-//	    log.Printf("L轴功能未启用")
-//	}
 func (dobot *Dobot) GetDeviceWithL(ctx context.Context) (bool, error) {
 	message := &Message{
 		Id:       ProtocolDeviceWithL,
@@ -466,22 +335,6 @@ func (dobot *Dobot) GetDeviceWithL(ctx context.Context) (bool, error) {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取设备运行时间
-//	seconds, err := dobot.GetDeviceTime()
-//	if err != nil {
-//	    log.Printf("获取运行时间失败: %v", err)
-//	    return
-//	}
-//	hours := float64(seconds) / 3600.0
-//	log.Printf("设备运行时间: %.2f小时", hours)
-//
-//	// 检查是否需要维护
-//	if hours > 100 {
-//	    log.Printf("提示：设备运行超过100小时，建议进行例行维护")
-//	}
 func (dobot *Dobot) GetDeviceTime(ctx context.Context) (uint32, error) {
 	message := &Message{
 		Id:       ProtocolDeviceTime,
@@ -516,26 +369,6 @@ func (dobot *Dobot) GetDeviceTime(ctx context.Context) (uint32, error) {
 //   - 设备未连接
 //   - 响应数据无效
 //   - 数据解析错误"
-//
-// @Example
-//
-//	// 获取设备详细信息
-//	info, err := dobot.GetDeviceInfo()
-//	if err != nil {
-//	    log.Printf("获取设备信息失败: %v", err)
-//	    return
-//	}
-//	log.Printf("设备信息：")
-//	log.Printf("  设备类型: %d", info.DeviceType)
-//	log.Printf("  运行时间: %.2f小时", float64(info.RunTime)/3600.0)
-//	log.Printf("  开机次数: %d", info.PowerOnCount)
-//	log.Printf("  错误次数: %d", info.ErrorCount)
-//	log.Printf("  警告次数: %d", info.WarningCount)
-//
-//	// 检查设备状态
-//	if info.ErrorCount > 10 {
-//	    log.Printf("警告：设备错误次数过多，建议进行检查")
-//	}
 func (dobot *Dobot) GetDeviceInfo() (*DeviceCountInfo, error) {
 	message := &Message{
 		Id:       ProtocolDeviceInfo,
@@ -574,27 +407,6 @@ func (dobot *Dobot) GetDeviceInfo() (*DeviceCountInfo, error) {
 //   - 设备未连接
 //   - 传感器异常
 //   - 数据解析错误"
-//
-// @Example
-//
-//	// 获取当前位姿信息
-//	pose, err := dobot.GetPose()
-//	if err != nil {
-//	    log.Printf("获取位姿失败: %v", err)
-//	    return
-//	}
-//	log.Printf("当前位姿信息：")
-//	log.Printf("  位置: (%.2f, %.2f, %.2f) mm", pose.X, pose.Y, pose.Z)
-//	log.Printf("  旋转角度: %.2f°", pose.R)
-//	log.Printf("  关节角度:")
-//	for i, angle := range pose.JointAngle {
-//	    log.Printf("    关节%d: %.2f°", i+1, angle)
-//	}
-//
-//	// 检查位置是否在工作空间内
-//	if math.Sqrt(pose.X*pose.X + pose.Y*pose.Y) > 300 {
-//	    log.Printf("警告：当前位置接近工作空间边界")
-//	}
 func (dobot *Dobot) GetPose() (*Pose, error) {
 	message := &Message{
 		Id:       ProtocolGetPose,
@@ -644,32 +456,6 @@ func (dobot *Dobot) GetPose() (*Pose, error) {
 //   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 使用自动模式重置位姿
-//	err := dobot.ResetPose(false, 0, 0)
-//	if err != nil {
-//	    log.Printf("自动重置位姿失败: %v", err)
-//	    return
-//	}
-//	log.Printf("位姿已自动重置")
-//
-//	// 使用手动模式重置到特定角度
-//	err = dobot.ResetPose(true, 45.0, 30.0)
-//	if err != nil {
-//	    log.Printf("手动重置位姿失败: %v", err)
-//	    return
-//	}
-//	log.Printf("位姿已重置到指定角度")
-//
-//	// 验证重置后的位姿
-//	pose, _ := dobot.GetPose()
-//	if pose != nil {
-//	    log.Printf("重置后的关节角度：")
-//	    log.Printf("  后臂: %.2f°", pose.JointAngle[1])
-//	    log.Printf("  前臂: %.2f°", pose.JointAngle[2])
-//	}
 func (dobot *Dobot) ResetPose(manual bool, rearArmAngle, frontArmAngle float32) error {
 	message := &Message{
 		Id:       ProtocolResetPose,
@@ -834,29 +620,6 @@ func (dobot *Dobot) GetHOMEParams() (*HOMEParams, error) {
 //   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 执行回零操作
-//	cmd := &HOMECmd{
-//	    // 设置回零参数
-//	}
-//	index, err := dobot.SetHOMECmd(cmd, true)
-//	if err != nil {
-//	    log.Printf("执行回零操作失败: %v", err)
-//	    return
-//	}
-//	log.Printf("回零操作开始执行，指令索引: %d", index)
-//
-//	// 等待回零操作完成
-//	for {
-//	    finished, _ := dobot.GetQueuedCmdMotionFinish()
-//	    if finished {
-//	        log.Printf("回零操作完成")
-//	        break
-//	    }
-//	    time.Sleep(100 * time.Millisecond)
-//	}
 func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd, isQueued bool) (uint64, error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -904,35 +667,6 @@ func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd, isQueued bool) (uint64, error) {
 //   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 执行自动调平
-//	cmd := &AutoLevelingCmd{
-//	    // 设置调平参数
-//	}
-//	index, err := dobot.SetAutoLevelingCmd(cmd, true)
-//	if err != nil {
-//	    log.Printf("执行自动调平失败: %v", err)
-//	    return
-//	}
-//	log.Printf("自动调平开始执行，指令索引: %d", index)
-//
-//	// 等待调平完成
-//	for {
-//	    finished, _ := dobot.GetQueuedCmdMotionFinish()
-//	    if finished {
-//	        // 获取调平结果
-//	        result, err := dobot.GetAutoLevelingResult()
-//	        if err != nil {
-//	            log.Printf("获取调平结果失败: %v", err)
-//	        } else {
-//	            log.Printf("调平完成，补偿角度: %.2f°", result)
-//	        }
-//	        break
-//	    }
-//	    time.Sleep(100 * time.Millisecond)
-//	}
 func (dobot *Dobot) SetAutoLevelingCmd(cmd *AutoLevelingCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -969,20 +703,6 @@ func (dobot *Dobot) SetAutoLevelingCmd(cmd *AutoLevelingCmd, isQueued bool) (que
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	precision, err := dobot.GetAutoLevelingResult()
-//	if err != nil {
-//	    log.Printf("获取调平结果失败: %v", err)
-//	} else {
-//	    log.Printf("调平精度: %.3fmm", precision)
-//	    if precision < 0.05 {
-//	        log.Printf("调平效果良好")
-//	    } else {
-//	        log.Printf("建议重新调平")
-//	    }
-//	}
 func (dobot *Dobot) GetAutoLevelingResult() (float32, error) {
 	message := &Message{
 		Id:       ProtocolAutoLeveling,
@@ -1014,15 +734,6 @@ func (dobot *Dobot) GetAutoLevelingResult() (float32, error) {
 //   - 示教器未连接
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	err := dobot.SetHHTTrigMode(HHTTrigMode_IMMEDIATELY)
-//	if err != nil {
-//	    log.Printf("设置触发模式失败: %v", err)
-//	} else {
-//	    log.Printf("已设置为立即触发模式")
-//	}
 func (dobot *Dobot) SetHHTTrigMode(mode HHTTrigMode) error {
 	message := &Message{
 		Id:       ProtocolHHTTrigMode,
@@ -1050,22 +761,6 @@ func (dobot *Dobot) SetHHTTrigMode(mode HHTTrigMode) error {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	mode, err := dobot.GetHHTTrigMode()
-//	if err != nil {
-//	    log.Printf("获取触发模式失败: %v", err)
-//	} else {
-//	    switch mode {
-//	    case HHTTrigMode_DISABLE:
-//	        log.Printf("当前为禁用状态")
-//	    case HHTTrigMode_IMMEDIATELY:
-//	        log.Printf("当前为立即触发状态")
-//	    case HHTTrigMode_DELAY:
-//	        log.Printf("当前为延时触发状态")
-//	    }
-//	}
 func (dobot *Dobot) GetHHTTrigMode() (HHTTrigMode, error) {
 	message := &Message{
 		Id:       ProtocolHHTTrigMode,
@@ -1095,15 +790,6 @@ func (dobot *Dobot) GetHHTTrigMode() (HHTTrigMode, error) {
 //   - 通信错误
 //   - 设备未连接
 //   - 当前模式不支持该操作"
-//
-// @Example
-//
-//	err := dobot.SetHHTTrigOutputEnabled(true)
-//	if err != nil {
-//	    log.Printf("设置触发输出使能失败: %v", err)
-//	} else {
-//	    log.Printf("已启用触发输出功能")
-//	}
 func (dobot *Dobot) SetHHTTrigOutputEnabled(enabled bool) error {
 	message := &Message{
 		Id:       ProtocolHHTTrigOutputEnabled,
@@ -1133,19 +819,6 @@ func (dobot *Dobot) SetHHTTrigOutputEnabled(enabled bool) error {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	enabled, err := dobot.GetHHTTrigOutputEnabled()
-//	if err != nil {
-//	    log.Printf("获取触发输出使能状态失败: %v", err)
-//	} else {
-//	    if enabled {
-//	        log.Printf("触发输出功能已启用")
-//	    } else {
-//	        log.Printf("触发输出功能已禁用")
-//	    }
-//	}
 func (dobot *Dobot) GetHHTTrigOutputEnabled() (bool, error) {
 	message := &Message{
 		Id:       ProtocolHHTTrigOutputEnabled,
@@ -1176,19 +849,6 @@ func (dobot *Dobot) GetHHTTrigOutputEnabled() (bool, error) {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	output, err := dobot.GetHHTTrigOutput()
-//	if err != nil {
-//	    log.Printf("获取触发输出状态失败: %v", err)
-//	} else {
-//	    if output {
-//	        log.Printf("当前有触发信号输出")
-//	    } else {
-//	        log.Printf("当前无触发信号输出")
-//	    }
-//	}
 func (dobot *Dobot) GetHHTTrigOutput() (bool, error) {
 	message := &Message{
 		Id:       ProtocolHHTTrigOutput,
@@ -1231,24 +891,6 @@ func (dobot *Dobot) GetHHTTrigOutput() (bool, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置末端执行器偏移量
-//	params := &EndEffectorParams{
-//	    XBias: 0,    // X轴无偏移
-//	    YBias: 20,   // Y轴偏移20mm
-//	    ZBias: 30,   // Z轴偏移30mm
-//	}
-//	index, err := dobot.SetEndEffectorParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置末端执行器参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("末端执行器参数设置成功，指令索引: %d", index)
-//	} else {
-//	    log.Printf("设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetEndEffectorParams(params *EndEffectorParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -1290,16 +932,6 @@ func (dobot *Dobot) SetEndEffectorParams(params *EndEffectorParams, isQueued boo
 //   - 设备未连接
 //   - 响应数据无效
 //   - 数据解析错误"
-//
-// @Example
-//
-//	params, err := dobot.GetEndEffectorParams()
-//	if err != nil {
-//	    log.Printf("获取末端执行器参数失败: %v", err)
-//	} else {
-//	    log.Printf("末端执行器偏移量: X=%.2f, Y=%.2f, Z=%.2f",
-//	        params.xBias, params.yBias, params.zBias)
-//	}
 func (dobot *Dobot) GetEndEffectorParams() (*EndEffectorParams, error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorParams,
@@ -1349,23 +981,6 @@ func (dobot *Dobot) GetEndEffectorParams() (*EndEffectorParams, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 启用并打开激光器
-//	index, err := dobot.SetEndEffectorLaser(true, true, true)
-//	if err != nil {
-//	    log.Printf("设置激光器状态失败: %v", err)
-//	    return
-//	}
-//	log.Printf("激光器已启用并打开，指令索引: %d", index)
-//
-//	// 等待一段时间后关闭激光器
-//	time.Sleep(5 * time.Second)
-//	index, err = dobot.SetEndEffectorLaser(true, false, true)
-//	if err != nil {
-//	    log.Printf("关闭激光器失败: %v", err)
-//	}
 func (dobot *Dobot) SetEndEffectorLaser(enableCtrl bool, on bool, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorLaser,
@@ -1411,26 +1026,6 @@ func (dobot *Dobot) SetEndEffectorLaser(enableCtrl bool, on bool, isQueued bool)
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取激光器状态
-//	enabled, on, err := dobot.GetEndEffectorLaser()
-//	if err != nil {
-//	    log.Printf("获取激光器状态失败: %v", err)
-//	    return
-//	}
-//	log.Printf("激光器状态：")
-//	if enabled {
-//	    log.Printf("  控制已启用")
-//	    if on {
-//	        log.Printf("  当前已打开")
-//	    } else {
-//	        log.Printf("  当前已关闭")
-//	    }
-//	} else {
-//	    log.Printf("  控制未启用")
-//	}
 func (dobot *Dobot) GetEndEffectorLaser() (isCtrlEnabled bool, isOn bool, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorLaser,
@@ -1477,23 +1072,6 @@ func (dobot *Dobot) GetEndEffectorLaser() (isCtrlEnabled bool, isOn bool, err er
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 启用并打开吸盘
-//	index, err := dobot.SetEndEffectorSuctionCup(true, true, true)
-//	if err != nil {
-//	    log.Printf("设置吸盘状态失败: %v", err)
-//	    return
-//	}
-//	log.Printf("吸盘已启用并开始吸附，指令索引: %d", index)
-//
-//	// 等待一段时间后关闭吸盘
-//	time.Sleep(2 * time.Second)
-//	index, err = dobot.SetEndEffectorSuctionCup(true, false, true)
-//	if err != nil {
-//	    log.Printf("关闭吸盘失败: %v", err)
-//	}
 func (dobot *Dobot) SetEndEffectorSuctionCup(enableCtrl bool, suck bool, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorSuctionCup,
@@ -1539,26 +1117,6 @@ func (dobot *Dobot) SetEndEffectorSuctionCup(enableCtrl bool, suck bool, isQueue
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取吸盘状态
-//	enabled, sucking, err := dobot.GetEndEffectorSuctionCup()
-//	if err != nil {
-//	    log.Printf("获取吸盘状态失败: %v", err)
-//	    return
-//	}
-//	log.Printf("吸盘状态：")
-//	if enabled {
-//	    log.Printf("  控制已启用")
-//	    if sucking {
-//	        log.Printf("  当前正在吸附")
-//	    } else {
-//	        log.Printf("  当前未吸附")
-//	    }
-//	} else {
-//	    log.Printf("  控制未启用")
-//	}
 func (dobot *Dobot) GetEndEffectorSuctionCup() (isCtrlEnabled bool, isSucked bool, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorSuctionCup,
@@ -1604,23 +1162,6 @@ func (dobot *Dobot) GetEndEffectorSuctionCup() (isCtrlEnabled bool, isSucked boo
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 启用并闭合夹爪
-//	index, err := dobot.SetEndEffectorGripper(true, true, true)
-//	if err != nil {
-//	    log.Printf("设置夹爪状态失败: %v", err)
-//	    return
-//	}
-//	log.Printf("夹爪已启用并闭合，指令索引: %d", index)
-//
-//	// 等待一段时间后打开夹爪
-//	time.Sleep(2 * time.Second)
-//	index, err = dobot.SetEndEffectorGripper(true, false, true)
-//	if err != nil {
-//	    log.Printf("打开夹爪失败: %v", err)
-//	}
 func (dobot *Dobot) SetEndEffectorGripper(enableCtrl bool, grip bool, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorGripper,
@@ -1666,19 +1207,6 @@ func (dobot *Dobot) SetEndEffectorGripper(enableCtrl bool, grip bool, isQueued b
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取夹爪状态
-//	isEnabled, isGripped, err := dobot.GetEndEffectorGripper()
-//	if err != nil {
-//	    log.Printf("获取夹爪状态失败: %v", err)
-//	} else {
-//	    log.Printf("夹爪状态 - 控制使能: %v, 夹持状态: %v", isEnabled, isGripped)
-//	    if isEnabled && isGripped {
-//	        log.Printf("注意：夹爪当前处于闭合状态")
-//	    }
-//	}
 func (dobot *Dobot) GetEndEffectorGripper() (isCtrlEnabled bool, isGripped bool, err error) {
 	message := &Message{
 		Id:       ProtocolEndEffectorGripper,
@@ -1718,23 +1246,6 @@ func (dobot *Dobot) GetEndEffectorGripper() (isCtrlEnabled bool, isGripped bool,
 //   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置为左手方向
-//	index, err := dobot.SetArmOrientation(ArmOrientation_LeftyArmOrientation, true)
-//	if err != nil {
-//	    log.Printf("设置机械臂方向失败: %v", err)
-//	    return
-//	}
-//	log.Printf("正在切换到左手方向，指令索引: %d", index)
-//
-//	// 等待切换完成
-//	time.Sleep(2 * time.Second)
-//	orientation, _ := dobot.GetArmOrientation()
-//	if orientation == ArmOrientation_LeftyArmOrientation {
-//	    log.Printf("机械臂方向切换成功")
-//	}
 func (dobot *Dobot) SetArmOrientation(armOrientation ArmOrientation, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolArmOrientation,
@@ -1770,20 +1281,6 @@ func (dobot *Dobot) SetArmOrientation(armOrientation ArmOrientation, isQueued bo
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取当前臂方向
-//	orientation, err := dobot.GetArmOrientation()
-//	if err != nil {
-//	    log.Printf("获取机械臂方向失败: %v", err)
-//	    return
-//	}
-//	if orientation == ArmOrientation_LeftyArmOrientation {
-//	    log.Printf("当前为左手方向")
-//	} else {
-//	    log.Printf("当前为右手方向")
-//	}
 func (dobot *Dobot) GetArmOrientation() (ArmOrientation, error) {
 	message := &Message{
 		Id:       ProtocolArmOrientation,
@@ -1825,20 +1322,6 @@ func (dobot *Dobot) GetArmOrientation() (ArmOrientation, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置关节点动参数
-//	params := &JOGJointParams{
-//	    Velocity:     [4]float32{10, 10, 10, 10},  // 各关节速度10°/s
-//	    Acceleration: [4]float32{50, 50, 50, 50},  // 各关节加速度50°/s²
-//	}
-//	index, err := dobot.SetJOGJointParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置关节点动参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("关节点动参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetJOGJointParams(params *JOGJointParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -1878,20 +1361,6 @@ func (dobot *Dobot) SetJOGJointParams(params *JOGJointParams, isQueued bool) (qu
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取关节点动参数
-//	params, err := dobot.GetJOGJointParams()
-//	if err != nil {
-//	    log.Printf("获取关节点动参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("当前关节点动参数：")
-//	for i := 0; i < 4; i++ {
-//	    log.Printf("  关节%d - 速度: %.1f°/s, 加速度: %.1f°/s²",
-//	        i+1, params.Velocity[i], params.Acceleration[i])
-//	}
 func (dobot *Dobot) GetJOGJointParams() (*JOGJointParams, error) {
 	message := &Message{
 		Id:       ProtocolJOGJointParams,
@@ -1937,20 +1406,6 @@ func (dobot *Dobot) GetJOGJointParams() (*JOGJointParams, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置坐标点动参数
-//	params := &JOGCoordinateParams{
-//	    Velocity:     [4]float32{100, 100, 100, 50},  // XYZ速度100mm/s，R速度50°/s
-//	    Acceleration: [4]float32{500, 500, 500, 200}, // XYZ加速度500mm/s²，R加速度200°/s²
-//	}
-//	index, err := dobot.SetJOGCoordinateParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置坐标点动参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("坐标点动参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetJOGCoordinateParams(params *JOGCoordinateParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -1990,26 +1445,6 @@ func (dobot *Dobot) SetJOGCoordinateParams(params *JOGCoordinateParams, isQueued
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取坐标点动参数
-//	params, err := dobot.GetJOGCoordinateParams()
-//	if err != nil {
-//	    log.Printf("获取坐标点动参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("当前坐标点动参数：")
-//	axes := []string{"X", "Y", "Z", "R"}
-//	for i, axis := range axes {
-//	    if i < 3 {
-//	        log.Printf("  %s轴 - 速度: %.1fmm/s, 加速度: %.1fmm/s²",
-//	            axis, params.Velocity[i], params.Acceleration[i])
-//	    } else {
-//	        log.Printf("  %s轴 - 速度: %.1f°/s, 加速度: %.1f°/s²",
-//	            axis, params.Velocity[i], params.Acceleration[i])
-//	    }
-//	}
 func (dobot *Dobot) GetJOGCoordinateParams() (*JOGCoordinateParams, error) {
 	message := &Message{
 		Id:       ProtocolJOGCoordinateParams,
@@ -2051,20 +1486,6 @@ func (dobot *Dobot) GetJOGCoordinateParams() (*JOGCoordinateParams, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置滑轨点动参数
-//	params := &JOGLParams{
-//	    Velocity:     100,  // 滑轨速度100mm/s
-//	    Acceleration: 500,  // 滑轨加速度500mm/s²
-//	}
-//	index, err := dobot.SetJOGLParams(params)
-//	if err != nil {
-//	    log.Printf("设置滑轨点动参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("滑轨点动参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetJOGLParams(params *JOGLParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2107,18 +1528,6 @@ func (dobot *Dobot) SetJOGLParams(params *JOGLParams, isQueued bool) (queuedCmdI
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取滑轨点动参数
-//	params, err := dobot.GetJOGLParams()
-//	if err != nil {
-//	    log.Printf("获取滑轨点动参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("当前滑轨点动参数：")
-//	log.Printf("  速度: %.1f mm/s", params.Velocity)
-//	log.Printf("  加速度: %.1f mm/s²", params.Acceleration)
 func (dobot *Dobot) GetJOGLParams() (*JOGLParams, error) {
 	message := &Message{
 		Id:       ProtocolJOGLParams,
@@ -2163,20 +1572,6 @@ func (dobot *Dobot) GetJOGLParams() (*JOGLParams, error) {
 //   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置JOG通用运动参数
-//	params := &JOGCommonParams{
-//	    VelocityRatio:     50,  // 速度比例50%
-//	    AccelerationRatio: 50,  // 加速度比例50%
-//	}
-//	index, err := dobot.SetJOGCommonParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置JOG通用参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("JOG通用参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetJOGCommonParams(params *JOGCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2219,18 +1614,6 @@ func (dobot *Dobot) SetJOGCommonParams(params *JOGCommonParams, isQueued bool) (
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取JOG通用参数
-//	params, err := dobot.GetJOGCommonParams()
-//	if err != nil {
-//	    log.Printf("获取JOG通用参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("当前JOG通用参数：")
-//	log.Printf("  速度比例: %d%%", params.VelocityRatio)
-//	log.Printf("  加速度比例: %d%%", params.AccelerationRatio)
 func (dobot *Dobot) GetJOGCommonParams() (*JOGCommonParams, error) {
 	message := &Message{
 		Id:       ProtocolJOGCommonParams,
@@ -2278,29 +1661,6 @@ func (dobot *Dobot) GetJOGCommonParams() (*JOGCommonParams, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 执行关节1正向运动
-//	cmd := &JOGCmd{
-//	    IsJoint:   true,     // 关节运动模式
-//	    Index:     0,        // 关节1
-//	    Direction: 1,        // 正向运动
-//	}
-//	index, err := dobot.SetJOGCmd(cmd, true)
-//	if err != nil {
-//	    log.Printf("执行JOG运动失败: %v", err)
-//	    return
-//	}
-//	log.Printf("JOG运动开始执行，指令索引: %d", index)
-//
-//	// 等待一段时间后停止运动
-//	time.Sleep(1 * time.Second)
-//	cmd.Direction = 0    // 停止运动
-//	index, err = dobot.SetJOGCmd(cmd, true)
-//	if err != nil {
-//	    log.Printf("停止JOG运动失败: %v", err)
-//	}
 func (dobot *Dobot) SetJOGCmd(cmd *JOGCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -2352,24 +1712,6 @@ func (dobot *Dobot) SetJOGCmd(cmd *JOGCmd, isQueued bool) (queuedCmdIndex uint64
 //   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置PTP关节运动参数
-//	params := &PTPJointParams{
-//	    Velocity: [4]float32{
-//	        60, 60, 60, 60,  // 各关节速度60°/s
-//	    },
-//	    Acceleration: [4]float32{
-//	        100, 100, 100, 100,  // 各关节加速度100°/s²
-//	    },
-//	}
-//	index, err := dobot.SetPTPJointParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置PTP关节参数失败: %v", err)
-//	} else {
-//	    log.Printf("PTP关节参数设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetPTPJointParams(params *PTPJointParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2399,16 +1741,6 @@ func (dobot *Dobot) SetPTPJointParams(params *PTPJointParams, isQueued bool) (qu
 // @Return error "错误信息"
 // @Success 200 {object} *PTPJointParams "返回PTP关节运动参数结构体"
 // @Failure 400 {error} "获取失败，可能的错误：通信错误、设备未连接、响应数据无效"
-// @Example
-//
-//	params, err := dobot.GetPTPJointParams()
-//	if err != nil {
-//	    log.Printf("获取PTP关节参数失败: %v", err)
-//	} else {
-//	    log.Printf("当前关节速度: %.2f, %.2f, %.2f, %.2f °/s",
-//	        params.Velocity[0], params.Velocity[1],
-//	        params.Velocity[2], params.Velocity[3])
-//	}
 func (dobot *Dobot) GetPTPJointParams() (*PTPJointParams, error) {
 	message := &Message{
 		Id:       ProtocolPTPJointParams,
@@ -2457,22 +1789,6 @@ func (dobot *Dobot) GetPTPJointParams() (*PTPJointParams, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置PTP坐标运动参数
-//	params := &PTPCoordinateParams{
-//	    XYZVelocity:     200,  // XYZ轴速度200mm/s
-//	    RVelocity:       100,  // R轴速度100°/s
-//	    XYZAcceleration: 800,  // XYZ轴加速度800mm/s²
-//	    RAcceleration:   400,  // R轴加速度400°/s²
-//	}
-//	index, err := dobot.SetPTPCoordinateParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置PTP坐标运动参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("PTP坐标运动参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetPTPCoordinateParams(params *PTPCoordinateParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2518,20 +1834,6 @@ func (dobot *Dobot) SetPTPCoordinateParams(params *PTPCoordinateParams, isQueued
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取PTP坐标运动参数
-//	params, err := dobot.GetPTPCoordinateParams()
-//	if err != nil {
-//	    log.Printf("获取PTP坐标运动参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("当前PTP坐标运动参数：")
-//	log.Printf("  XYZ轴速度: %.1f mm/s", params.XYZVelocity)
-//	log.Printf("  R轴速度: %.1f °/s", params.RVelocity)
-//	log.Printf("  XYZ轴加速度: %.1f mm/s²", params.XYZAcceleration)
-//	log.Printf("  R轴加速度: %.1f °/s²", params.RAcceleration)
 func (dobot *Dobot) GetPTPCoordinateParams() (*PTPCoordinateParams, error) {
 	message := &Message{
 		Id:       ProtocolPTPCoordinateParams,
@@ -2578,20 +1880,6 @@ func (dobot *Dobot) GetPTPCoordinateParams() (*PTPCoordinateParams, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置PTPL运动参数
-//	params := &PTPLParams{
-//	    Velocity:     200,  // 速度200mm/s
-//	    Acceleration: 800,  // 加速度800mm/s²
-//	}
-//	index, err := dobot.SetPTPLParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置PTPL运动参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("PTPL运动参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetPTPLParams(params *PTPLParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2635,18 +1923,6 @@ func (dobot *Dobot) SetPTPLParams(params *PTPLParams, isQueued bool) (queuedCmdI
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取PTPL运动参数
-//	params, err := dobot.GetPTPLParams()
-//	if err != nil {
-//	    log.Printf("获取PTPL运动参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("当前PTPL运动参数：")
-//	log.Printf("  速度: %.1f mm/s", params.Velocity)
-//	log.Printf("  加速度: %.1f mm/s²", params.Acceleration)
 func (dobot *Dobot) GetPTPLParams() (*PTPLParams, error) {
 	message := &Message{
 		Id:       ProtocolPTPLParams,
@@ -2693,20 +1969,6 @@ func (dobot *Dobot) GetPTPLParams() (*PTPLParams, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置PTP跳跃参数
-//	params := &PTPJumpParams{
-//	    JumpHeight: 50,   // 跳跃高度50mm
-//	    ZLimit:     200,  // Z轴限位200mm
-//	}
-//	index, err := dobot.SetPTPJumpParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置PTP跳跃参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("PTP跳跃参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetPTPJumpParams(params *PTPJumpParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid para dms: params is nil")
@@ -2750,18 +2012,6 @@ func (dobot *Dobot) SetPTPJumpParams(params *PTPJumpParams, isQueued bool) (queu
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取PTP跳跃参数
-//	params, err := dobot.GetPTPJumpParams()
-//	if err != nil {
-//	    log.Printf("获取PTP跳跃参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("当前PTP跳跃参数：")
-//	log.Printf("  跳跃高度: %.1f mm", params.JumpHeight)
-//	log.Printf("  Z轴限位: %.1f mm", params.ZLimit)
 func (dobot *Dobot) GetPTPJumpParams() (*PTPJumpParams, error) {
 	message := &Message{
 		Id:       ProtocolPTPJumpParams,
@@ -2809,21 +2059,6 @@ func (dobot *Dobot) GetPTPJumpParams() (*PTPJumpParams, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置PTP跳跃2参数
-//	params := &PTPJump2Params{
-//	    StartJumpHeight: 30,   // 起点跳跃高度30mm
-//	    EndJumpHeight:   50,   // 终点跳跃高度50mm
-//	    ZLimit:          200,  // Z轴限位200mm
-//	}
-//	index, err := dobot.SetPTPJump2Params(params, true)
-//	if err != nil {
-//	    log.Printf("设置PTP跳跃2参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("PTP跳跃2参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetPTPJump2Params(params *PTPJump2Params, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -2868,19 +2103,6 @@ func (dobot *Dobot) SetPTPJump2Params(params *PTPJump2Params, isQueued bool) (qu
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取PTP跳跃2参数
-//	params, err := dobot.GetPTPJump2Params()
-//	if err != nil {
-//	    log.Printf("获取PTP跳跃2参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("当前PTP跳跃2参数：")
-//	log.Printf("  起点跳跃高度: %.1f mm", params.StartJumpHeight)
-//	log.Printf("  终点跳跃高度: %.1f mm", params.EndJumpHeight)
-//	log.Printf("  Z轴限位: %.1f mm", params.ZLimit)
 func (dobot *Dobot) GetPTPJump2Params() (*PTPJump2Params, error) {
 	message := &Message{
 		Id:       ProtocolPTPJump2Params,
@@ -2927,20 +2149,6 @@ func (dobot *Dobot) GetPTPJump2Params() (*PTPJump2Params, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置PTP通用运动参数
-//	params := &PTPCommonParams{
-//	    VelocityRatio:     50,  // 速度比例50%
-//	    AccelerationRatio: 50,  // 加速度比例50%
-//	}
-//	index, err := dobot.SetPTPCommonParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置PTP通用参数失败: %v", err)
-//	    return
-//	}
-//	log.Printf("PTP通用参数设置成功，指令索引: %d", index)
 func (dobot *Dobot) SetPTPCommonParams(params *PTPCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -3047,31 +2255,6 @@ func (dobot *Dobot) SetPTPCmd(cmd *PTPCmd, isQueued bool) (queuedCmdIndex uint64
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 执行带L轴的点到点运动
-//	cmd := &PTPWithLCmd{
-//	    PTPMode: PTPMode_MOVJ,           // 关节运动模式
-//	    X: 200, Y: 0, Z: 100, R: 0,      // 目标位置和姿态
-//	    L: 50,                           // L轴目标位置
-//	}
-//	index, err := dobot.SetPTPWithLCmd(cmd, true)
-//	if err != nil {
-//	    log.Printf("执行带L轴的PTP运动失败: %v", err)
-//	    return
-//	}
-//	log.Printf("带L轴的PTP运动开始执行，指令索引: %d", index)
-//
-//	// 等待运动完成
-//	for {
-//	    finished, _ := dobot.GetQueuedCmdMotionFinish()
-//	    if finished {
-//	        log.Printf("带L轴的PTP运动完成")
-//	        break
-//	    }
-//	    time.Sleep(100 * time.Millisecond)
-//	}
 func (dobot *Dobot) SetPTPWithLCmd(cmd *PTPWithLCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -3153,22 +2336,6 @@ func (dobot *Dobot) SetCPParams(params *CPParams, isQueued bool) (queuedCmdIndex
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置CP运动指令
-//	cmd := &CPCmd{
-//	    CPMode: 0,
-//	    X: 200, Y: 0, Z: 50, R: 0,
-//	    Velocity: 100,    // 速度100mm/s
-//	    Acceleration: 200, // 加速度200mm/s²
-//	}
-//	index, err := dobot.SetCPCmd(cmd, true)
-//	if err != nil {
-//	    log.Printf("设置CP运动指令失败: %v", err)
-//	} else {
-//	    log.Printf("CP运动指令设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetCPCmd(cmd *CPCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -3227,16 +2394,6 @@ func (dobot *Dobot) SetCPCmd(cmd *CPCmd, isQueued bool) (queuedCmdIndex uint64, 
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置CPLE运动指令
-//	index, err := dobot.SetCPLECmd(0, 200, 0, 50, 80, true)
-//	if err != nil {
-//	    log.Printf("设置CPLE运动指令失败: %v", err)
-//	} else {
-//	    log.Printf("CPLE运动指令设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetCPLECmd(cpMode uint8, x, y, z, power float32, isQueued bool) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolCPLECmd,
@@ -3278,16 +2435,6 @@ func (dobot *Dobot) SetCPLECmd(cpMode uint8, x, y, z, power float32, isQueued bo
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 启用CP运动保持功能
-//	err := dobot.SetCPRHoldEnable(true)
-//	if err != nil {
-//	    log.Printf("设置CP运动保持功能失败: %v", err)
-//	} else {
-//	    log.Printf("CP运动保持功能已启用")
-//	}
 func (dobot *Dobot) SetCPRHoldEnable(isEnable bool) error {
 	message := &Message{
 		Id:       ProtocolCPRHoldEnable,
@@ -3318,20 +2465,6 @@ func (dobot *Dobot) SetCPRHoldEnable(isEnable bool) error {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取CP运动保持功能状态
-//	enabled, err := dobot.GetCPRHoldEnable()
-//	if err != nil {
-//	    log.Printf("获取CP运动保持状态失败: %v", err)
-//	} else {
-//	    if enabled {
-//	        log.Printf("CP运动保持功能已启用")
-//	    } else {
-//	        log.Printf("CP运动保持功能已禁用")
-//	    }
-//	}
 func (dobot *Dobot) GetCPRHoldEnable() (bool, error) {
 	message := &Message{
 		Id:       ProtocolCPRHoldEnable,
@@ -3372,22 +2505,6 @@ func (dobot *Dobot) GetCPRHoldEnable() (bool, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置CP运动通用参数
-//	params := &CPCommonParams{
-//	    PlanAcc:       100,   // 规划加速度
-//	    JunctionVel:   50,    // 拐点速度
-//	    Acc:           200,   // 加速度
-//	    RealTimeTrack: false, // 关闭实时轨迹
-//	}
-//	index, err := dobot.SetCPCommonParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置CP通用参数失败: %v", err)
-//	} else {
-//	    log.Printf("CP通用参数设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetCPCommonParams(params *CPCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -3462,22 +2579,6 @@ func (dobot *Dobot) GetCPCommonParams() (*CPCommonParams, error) {
 //   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置ARC运动参数
-//	params := &ARCParams{
-//	    XYZVelocity:      100,  // XYZ轴速度100mm/s
-//	    RVelocity:        50,   // R轴速度50°/s
-//	    XYZAcceleration:  200,  // XYZ轴加速度200mm/s²
-//	    RAcceleration:    100,  // R轴加速度100°/s²
-//	}
-//	index, err := dobot.SetARCParams(params, true)
-//	if err != nil {
-//	    log.Printf("设置ARC参数失败: %v", err)
-//	} else {
-//	    log.Printf("ARC参数设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetARCParams(params *ARCParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -3520,20 +2621,6 @@ func (dobot *Dobot) SetARCParams(params *ARCParams, isQueued bool) (queuedCmdInd
 //   - 设备未连接
 //   - 响应数据无效
 //   - 数据解析错误"
-//
-// @Example
-//
-//	// 获取当前ARC运动参数
-//	params, err := dobot.GetARCParams()
-//	if err != nil {
-//	    log.Printf("获取ARC参数失败: %v", err)
-//	} else {
-//	    log.Printf("当前ARC参数：")
-//	    log.Printf("  XYZ轴速度: %.2f mm/s", params.XYZVelocity)
-//	    log.Printf("  R轴速度: %.2f °/s", params.RVelocity)
-//	    log.Printf("  XYZ轴加速度: %.2f mm/s²", params.XYZAcceleration)
-//	    log.Printf("  R轴加速度: %.2f °/s²", params.RAcceleration)
-//	}
 func (dobot *Dobot) GetARCParams() (*ARCParams, error) {
 	message := &Message{
 		Id:       ProtocolARCParams,
@@ -3576,20 +2663,6 @@ func (dobot *Dobot) GetARCParams() (*ARCParams, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置ARC运动指令
-//	cmd := &ARCCmd{
-//	    Point1: Point{X: 200, Y: 0, Z: 0, R: 0},    // 第一个路径点
-//	    Point2: Point{X: 200, Y: 200, Z: 0, R: 0},  // 第二个路径点
-//	}
-//	index, err := dobot.SetARCCmd(cmd)
-//	if err != nil {
-//	    log.Printf("设置ARC运动指令失败: %v", err)
-//	} else {
-//	    log.Printf("ARC运动指令设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetARCCmd(cmd *ARCCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -3642,21 +2715,6 @@ func (dobot *Dobot) SetARCCmd(cmd *ARCCmd, isQueued bool) (queuedCmdIndex uint64
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置圆周运动指令，运动3圈
-//	cmd := &CircleCmd{
-//	    Point1: Point{X: 200, Y: 0, Z: 0, R: 0},    // 第一个路径点
-//	    Point2: Point{X: 200, Y: 200, Z: 0, R: 0},  // 第二个路径点
-//	    Count:  3,                                   // 运动3圈
-//	}
-//	index, err := dobot.SetCircleCmd(cmd)
-//	if err != nil {
-//	    log.Printf("设置圆周运动指令失败: %v", err)
-//	} else {
-//	    log.Printf("圆周运动指令设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -3704,20 +2762,6 @@ func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd, isQueued bool) (queuedCmdIndex 
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置ARC通用参数
-//	params := &ARCCommonParams{
-//	    VelocityRatio:     50,  // 速度比例50%
-//	    AccelerationRatio: 50,  // 加速度比例50%
-//	}
-//	index, err := dobot.SetARCCommonParams(params)
-//	if err != nil {
-//	    log.Printf("设置ARC通用参数失败: %v", err)
-//	} else {
-//	    log.Printf("ARC通用参数设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -3760,18 +2804,6 @@ func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams, isQueued bool) (
 //   - 设备未连接
 //   - 响应数据无效
 //   - 数据解析错误"
-//
-// @Example
-//
-//	// 获取当前ARC通用运动参数
-//	params, err := dobot.GetARCCommonParams()
-//	if err != nil {
-//	    log.Printf("获取ARC通用参数失败: %v", err)
-//	} else {
-//	    log.Printf("当前ARC通用参数：")
-//	    log.Printf("  速度比例: %d%%", params.VelocityRatio)
-//	    log.Printf("  加速度比例: %d%%", params.AccelerationRatio)
-//	}
 func (dobot *Dobot) GetARCCommonParams() (*ARCCommonParams, error) {
 	message := &Message{
 		Id:       ProtocolARCCommonParams,
@@ -3812,19 +2844,6 @@ func (dobot *Dobot) GetARCCommonParams() (*ARCCommonParams, error) {
 //   - 等待时间无效
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置等待1秒
-//	cmd := &WAITCmd{
-//	    Timeout: 1000,  // 等待1000毫秒
-//	}
-//	index, err := dobot.SetWAITCmd(cmd, true)
-//	if err != nil {
-//	    log.Printf("设置等待指令失败: %v", err)
-//	} else {
-//	    log.Printf("等待指令设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetWAITCmd(cmd *WAITCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -3876,22 +2895,6 @@ func (dobot *Dobot) SetWAITCmd(cmd *WAITCmd, isQueued bool) (queuedCmdIndex uint
 //   - 地址超出范围
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置时间触发指令
-//	cmd := &TRIGCmd{
-//	    Address:   1,        // IO端口1
-//	    Mode:      0,        // 时间触发模式
-//	    Condition: 500,      // 延时500ms后触发
-//	    Threshold: 1,        // 输出高电平
-//	}
-//	index, err := dobot.SetTRIGCmd(cmd, true)
-//	if err != nil {
-//	    log.Printf("设置触发指令失败: %v", err)
-//	} else {
-//	    log.Printf("触发指令设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetTRIGCmd(cmd *TRIGCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
@@ -3946,20 +2949,6 @@ func (dobot *Dobot) SetTRIGCmd(cmd *TRIGCmd, isQueued bool) (queuedCmdIndex uint
 //   - 复用功能不支持
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置IO端口1为PWM输出功能
-//	params := &IOMultiplexing{
-//	    Address:    1,    // IO端口1
-//	    Multiplex:  1,    // PWM输出功能
-//	}
-//	index, err := dobot.SetIOMultiplexing(params, true)
-//	if err != nil {
-//	    log.Printf("设置IO复用功能失败: %v", err)
-//	} else {
-//	    log.Printf("IO复用功能设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetIOMultiplexing(params *IOMultiplexing, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -4012,20 +3001,6 @@ func (dobot *Dobot) SetIOMultiplexing(params *IOMultiplexing, isQueued bool) (qu
 //   - 端口模式不正确
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置IO端口1输出高电平
-//	params := &IODO{
-//	    Address: 1,    // IO端口1
-//	    Level:   1,    // 输出高电平
-//	}
-//	index, err := dobot.SetIODO(params, true)
-//	if err != nil {
-//	    log.Printf("设置IO数字输出失败: %v", err)
-//	} else {
-//	    log.Printf("IO数字输出设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetIODO(params *IODO, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -4081,21 +3056,6 @@ func (dobot *Dobot) SetIODO(params *IODO, isQueued bool) (queuedCmdIndex uint64,
 //   - 占空比超出范围
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置IO端口1输出1kHz、占空比50%的PWM信号
-//	params := &IOPWM{
-//	    Address:    1,     // IO端口1
-//	    Frequency:  1000,  // 频率1000Hz
-//	    DutyCycle:  50,    // 占空比50%
-//	}
-//	index, err := dobot.SetIOPWM(params, true)
-//	if err != nil {
-//	    log.Printf("设置IO PWM输出失败: %v", err)
-//	} else {
-//	    log.Printf("IO PWM输出设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetIOPWM(params *IOPWM, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -4149,22 +3109,6 @@ func (dobot *Dobot) SetIOPWM(params *IOPWM, isQueued bool) (queuedCmdIndex uint6
 //   - 电机未连接
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置电机0正向运行
-//	params := &EMotor{
-//	    Index:     0,     // 电机0
-//	    Enabled:   true,  // 使能电机
-//	    Speed:     1000,  // 设置速度
-//	    Direction: 0,     // 正向旋转
-//	}
-//	index, err := dobot.SetEMotor(params, true)
-//	if err != nil {
-//	    log.Printf("设置扩展电机失败: %v", err)
-//	} else {
-//	    log.Printf("扩展电机设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetEMotor(params *EMotor, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -4222,23 +3166,6 @@ func (dobot *Dobot) SetEMotor(params *EMotor, isQueued bool) (queuedCmdIndex uin
 //   - 电机未连接
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 同时设置两个步进电机
-//	params := &EMotorS{
-//	    Count: 2,                    // 控制2个电机
-//	    Index:     [8]int{0, 1},     // 电机0和1
-//	    Enabled:   [8]bool{true, true},
-//	    Speed:     [8]int{1000, 1000},
-//	    Direction: [8]int{0, 0},      // 都设为正向
-//	}
-//	index, err := dobot.SetEMotorS(params, true)
-//	if err != nil {
-//	    log.Printf("设置步进电机失败: %v", err)
-//	} else {
-//	    log.Printf("步进电机设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetEMotorS(params *EMotorS, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
@@ -4289,16 +3216,6 @@ func (dobot *Dobot) SetEMotorS(params *EMotorS, isQueued bool) (queuedCmdIndex u
 //   - 版本不匹配
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 在端口1启用颜色传感器
-//	err := dobot.SetColorSensor(true, ColorPort_PORT1, 1)
-//	if err != nil {
-//	    log.Printf("设置颜色传感器失败: %v", err)
-//	} else {
-//	    log.Printf("颜色传感器设置成功")
-//	}
 func (dobot *Dobot) SetColorSensor(enable bool, colorPort ColorPort, version uint8) error {
 	message := &Message{
 		Id:       ProtocolColorSensor,
@@ -4340,19 +3257,6 @@ func (dobot *Dobot) SetColorSensor(enable bool, colorPort ColorPort, version uin
 //   - 传感器未连接
 //   - 通信错误
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取颜色传感器数据
-//	r, g, b, err := dobot.GetColorSensor()
-//	if err != nil {
-//	    log.Printf("获取颜色传感器数据失败: %v", err)
-//	} else {
-//	    log.Printf("当前检测到的颜色：")
-//	    log.Printf("  R: %d", r)
-//	    log.Printf("  G: %d", g)
-//	    log.Printf("  B: %d", b)
-//	}
 func (dobot *Dobot) GetColorSensor() (r, g, b uint8, err error) {
 	message := &Message{
 		Id:       ProtocolColorSensor,
@@ -4393,16 +3297,6 @@ func (dobot *Dobot) GetColorSensor() (r, g, b uint8, err error) {
 //   - 版本不匹配
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 在端口1启用红外传感器
-//	err := dobot.SetInfraredSensor(true, InfraredPort_PORT1, 1)
-//	if err != nil {
-//	    log.Printf("设置红外传感器失败: %v", err)
-//	} else {
-//	    log.Printf("红外传感器设置成功")
-//	}
 func (dobot *Dobot) SetInfraredSensor(enable bool, infraredPort InfraredPort, version uint8) error {
 	message := &Message{
 		Id:       ProtocolInfraredSensor,
@@ -4443,16 +3337,6 @@ func (dobot *Dobot) SetInfraredSensor(enable bool, infraredPort InfraredPort, ve
 //   - 端口无效
 //   - 通信错误
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取端口1的红外传感器数据
-//	value, err := dobot.GetInfraredSensor(InfraredPort_PORT1)
-//	if err != nil {
-//	    log.Printf("获取红外传感器数据失败: %v", err)
-//	} else {
-//	    log.Printf("当前红外传感器数据: %d", value)
-//	}
 func (dobot *Dobot) GetInfraredSensor(port InfraredPort) (uint8, error) {
 	message := &Message{
 		Id:       ProtocolInfraredSensor,
@@ -4490,16 +3374,6 @@ func (dobot *Dobot) GetInfraredSensor(port InfraredPort) (uint8, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置角度传感器静态误差补偿
-//	err := dobot.SetAngleSensorStaticError(0.1, 0.2)
-//	if err != nil {
-//	    log.Printf("设置角度传感器静态误差失败: %v", err)
-//	} else {
-//	    log.Printf("角度传感器静态误差设置成功")
-//	}
 func (dobot *Dobot) SetAngleSensorStaticError(rearArmAngleError, frontArmAngleError float32) error {
 	message := &Message{
 		Id:       ProtocolAngleSensorStaticError,
@@ -4537,18 +3411,6 @@ func (dobot *Dobot) SetAngleSensorStaticError(rearArmAngleError, frontArmAngleEr
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取角度传感器静态误差补偿值
-//	rearError, frontError, err := dobot.GetAngleSensorStaticError()
-//	if err != nil {
-//	    log.Printf("获取角度传感器静态误差失败: %v", err)
-//	} else {
-//	    log.Printf("当前静态误差补偿值：")
-//	    log.Printf("  后臂: %.2f°", rearError)
-//	    log.Printf("  前臂: %.2f°", frontError)
-//	}
 func (dobot *Dobot) GetAngleSensorStaticError() (float32, float32, error) {
 	message := &Message{
 		Id:       ProtocolAngleSensorStaticError,
@@ -4589,16 +3451,6 @@ func (dobot *Dobot) GetAngleSensorStaticError() (float32, float32, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置角度传感器校准系数
-//	err := dobot.SetAngleSensorCoef(1.02, 0.98)
-//	if err != nil {
-//	    log.Printf("设置角度传感器系数失败: %v", err)
-//	} else {
-//	    log.Printf("角度传感器系数设置成功")
-//	}
 func (dobot *Dobot) SetAngleSensorCoef(rearArmAngleCoef, frontArmAngleCoef float32) error {
 	message := &Message{
 		Id:       ProtocolAngleSensorCoef,
@@ -4636,18 +3488,6 @@ func (dobot *Dobot) SetAngleSensorCoef(rearArmAngleCoef, frontArmAngleCoef float
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取角度传感器校准系数
-//	rearCoef, frontCoef, err := dobot.GetAngleSensorCoef()
-//	if err != nil {
-//	    log.Printf("获取角度传感器系数失败: %v", err)
-//	} else {
-//	    log.Printf("当前校准系数：")
-//	    log.Printf("  后臂: %.3f", rearCoef)
-//	    log.Printf("  前臂: %.3f", frontCoef)
-//	}
 func (dobot *Dobot) GetAngleSensorCoef() (float32, float32, error) {
 	message := &Message{
 		Id:       ProtocolAngleSensorCoef,
@@ -4683,16 +3523,6 @@ func (dobot *Dobot) GetAngleSensorCoef() (float32, float32, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置底座编码器静态误差补偿
-//	err := dobot.SetBaseDecoderStaticError(0.1)
-//	if err != nil {
-//	    log.Printf("设置底座编码器静态误差失败: %v", err)
-//	} else {
-//	    log.Printf("底座编码器静态误差设置成功")
-//	}
 func (dobot *Dobot) SetBaseDecoderStaticError(baseDecoderError float32) error {
 	message := &Message{
 		Id:       ProtocolBaseDecoderStaticError,
@@ -4724,16 +3554,6 @@ func (dobot *Dobot) SetBaseDecoderStaticError(baseDecoderError float32) error {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取底座编码器静态误差补偿值
-//	error, err := dobot.GetBaseDecoderStaticError()
-//	if err != nil {
-//	    log.Printf("获取底座编码器静态误差失败: %v", err)
-//	} else {
-//	    log.Printf("当前底座编码器静态误差: %.2f°", error)
-//	}
 func (dobot *Dobot) GetBaseDecoderStaticError() (float32, error) {
 	message := &Message{
 		Id:       ProtocolBaseDecoderStaticError,
@@ -4766,16 +3586,6 @@ func (dobot *Dobot) GetBaseDecoderStaticError() (float32, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置左右手校准值
-//	err := dobot.SetLRHandCalibrateValue(1.5)
-//	if err != nil {
-//	    log.Printf("设置左右手校准值失败: %v", err)
-//	} else {
-//	    log.Printf("左右手校准值设置成功")
-//	}
 func (dobot *Dobot) SetLRHandCalibrateValue(lrHandCalibrateValue float32) error {
 	message := &Message{
 		Id:       ProtocolLRHandCalibrateValue,
@@ -4808,16 +3618,6 @@ func (dobot *Dobot) SetLRHandCalibrateValue(lrHandCalibrateValue float32) error 
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取左右手校准值
-//	value, err := dobot.GetLRHandCalibrateValue()
-//	if err != nil {
-//	    log.Printf("获取左右手校准值失败: %v", err)
-//	} else {
-//	    log.Printf("当前左右手校准值: %.2fmm", value)
-//	}
 func (dobot *Dobot) GetLRHandCalibrateValue() (float32, error) {
 	message := &Message{
 		Id:       ProtocolLRHandCalibrateValue,
@@ -4848,16 +3648,6 @@ func (dobot *Dobot) GetLRHandCalibrateValue() (float32, error) {
 //   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 开始执行指令队列
-//	err := dobot.SetQueuedCmdStartExec()
-//	if err != nil {
-//	    log.Printf("开始执行指令队列失败: %v", err)
-//	} else {
-//	    log.Printf("指令队列开始执行")
-//	}
 func (dobot *Dobot) SetQueuedCmdStartExec() error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdStartExec,
@@ -4880,16 +3670,6 @@ func (dobot *Dobot) SetQueuedCmdStartExec() error {
 //   - 队列未在执行
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 停止执行指令队列
-//	err := dobot.SetQueuedCmdStopExec()
-//	if err != nil {
-//	    log.Printf("停止执行指令队列失败: %v", err)
-//	} else {
-//	    log.Printf("指令队列已停止执行")
-//	}
 func (dobot *Dobot) SetQueuedCmdStopExec() error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdStopExec,
@@ -4912,16 +3692,6 @@ func (dobot *Dobot) SetQueuedCmdStopExec() error {
 //   - 队列未在执行
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 强制停止执行指令队列
-//	err := dobot.SetQueuedCmdForceStopExec()
-//	if err != nil {
-//	    log.Printf("强制停止指令队列失败: %v", err)
-//	} else {
-//	    log.Printf("指令队列已强制停止")
-//	}
 func (dobot *Dobot) SetQueuedCmdForceStopExec() error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdForceStopExec,
@@ -4956,16 +3726,6 @@ func (dobot *Dobot) SetQueuedCmdForceStopExec() error {
 //   - 机械臂未就绪
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置指令队列循环执行3次，每次执行5条指令
-//	err := dobot.SetQueuedCmdStartDownload(3, 5)
-//	if err != nil {
-//	    log.Printf("开始下载指令队列失败: %v", err)
-//	} else {
-//	    log.Printf("指令队列开始下载")
-//	}
 func (dobot *Dobot) SetQueuedCmdStartDownload(totalLoop uint32, linePerLoop uint32) error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdStartDownload,
@@ -4993,16 +3753,6 @@ func (dobot *Dobot) SetQueuedCmdStartDownload(totalLoop uint32, linePerLoop uint
 //   - 当前没有下载任务
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 停止下载指令队列
-//	err := dobot.SetQueuedCmdStopDownload()
-//	if err != nil {
-//	    log.Printf("停止下载指令队列失败: %v", err)
-//	} else {
-//	    log.Printf("指令队列下载已停止")
-//	}
 func (dobot *Dobot) SetQueuedCmdStopDownload() error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdStopDownload,
@@ -5025,16 +3775,6 @@ func (dobot *Dobot) SetQueuedCmdStopDownload() error {
 //   - 队列正在执行
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 清除指令队列
-//	err := dobot.SetQueuedCmdClear()
-//	if err != nil {
-//	    log.Printf("清除指令队列失败: %v", err)
-//	} else {
-//	    log.Printf("指令队列已清除")
-//	}
 func (dobot *Dobot) SetQueuedCmdClear() error {
 	message := &Message{
 		Id:       ProtocolQueuedCmdClear,
@@ -5060,16 +3800,6 @@ func (dobot *Dobot) SetQueuedCmdClear() error {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取队列剩余空间
-//	space, err := dobot.GetQueuedCmdLeftSpace()
-//	if err != nil {
-//	    log.Printf("获取队列剩余空间失败: %v", err)
-//	} else {
-//	    log.Printf("当前队列剩余空间: %d", space)
-//	}
 func (dobot *Dobot) GetQueuedCmdLeftSpace() (uint32, error) {
 	message := &Message{
 		Id:       ProtocolQueuedCmdLeftSpace,
@@ -5100,16 +3830,6 @@ func (dobot *Dobot) GetQueuedCmdLeftSpace() (uint32, error) {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取当前执行的指令索引
-//	index, err := dobot.GetQueuedCmdCurrentIndex()
-//	if err != nil {
-//	    log.Printf("获取当前指令索引失败: %v", err)
-//	} else {
-//	    log.Printf("当前执行的指令索引: %d", index)
-//	}
 func (dobot *Dobot) GetQueuedCmdCurrentIndex() (uint64, error) {
 	message := &Message{
 		Id:       ProtocolQueuedCmdCurrentIndex,
@@ -5140,20 +3860,6 @@ func (dobot *Dobot) GetQueuedCmdCurrentIndex() (uint64, error) {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 检查指令队列执行状态
-//	finished, err := dobot.GetQueuedCmdMotionFinish()
-//	if err != nil {
-//	    log.Printf("获取执行状态失败: %v", err)
-//	} else {
-//	    if finished {
-//	        log.Printf("指令队列已执行完成")
-//	    } else {
-//	        log.Printf("指令队列仍在执行中")
-//	    }
-//	}
 func (dobot *Dobot) GetQueuedCmdMotionFinish() (bool, error) {
 	message := &Message{
 		Id:       ProtocolQueuedCmdMotionFinish,
@@ -5199,23 +3905,6 @@ func (dobot *Dobot) GetQueuedCmdMotionFinish() (bool, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置PTP运动并在运动过程中控制IO输出
-//	ptpCmd := &PTPCmd{
-//	    PTPMode: PTPMode_MovJ,  // 关节运动模式
-//	    X: 200, Y: 0, Z: 50, R: 0,
-//	}
-//	parallelCmd := []ParallelOutputCmd{
-//	    {Address: 1, Level: 1, Time: 500},  // 延时500ms后输出高电平
-//	}
-//	index, err := dobot.SetPTPPOCmd(ptpCmd, parallelCmd)
-//	if err != nil {
-//	    log.Printf("设置PTP并行输出命令失败: %v", err)
-//	} else {
-//	    log.Printf("PTP并行输出命令设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetPTPPOCmd(ptpCmd *PTPCmd, parallelCmd []ParallelOutputCmd) (queuedCmdIndex uint64, err error) {
 	if ptpCmd == nil {
 		return 0, errors.New("invalid params: ptpCmd is nil")
@@ -5267,24 +3956,6 @@ func (dobot *Dobot) SetPTPPOCmd(ptpCmd *PTPCmd, parallelCmd []ParallelOutputCmd)
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置带L轴的PTP运动并在运动过程中控制IO输出
-//	ptpCmd := &PTPWithLCmd{
-//	    PTPMode: 0,
-//	    X: 200, Y: 0, Z: 50, R: 0,
-//	    L: 90,  // L轴旋转到90度位置
-//	}
-//	parallelCmd := []ParallelOutputCmd{
-//	    {Address: 1, Level: 1, Time: 500},  // 延时500ms后输出高电平
-//	}
-//	index, err := dobot.SetPTPPOWithLCmd(ptpCmd, parallelCmd)
-//	if err != nil {
-//	    log.Printf("设置带L轴的PTP并行输出命令失败: %v", err)
-//	} else {
-//	    log.Printf("带L轴的PTP并行输出命令设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetPTPPOWithLCmd(ptpWithLCmd *PTPWithLCmd, parallelCmd []ParallelOutputCmd) (queuedCmdIndex uint64, err error) {
 	if ptpWithLCmd == nil {
 		return 0, errors.New("invalid params: ptpWithLCmd is nil")
@@ -5325,16 +3996,6 @@ func (dobot *Dobot) SetPTPPOWithLCmd(ptpWithLCmd *PTPWithLCmd, parallelCmd []Par
 //   - WIFI模块未就绪
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 启用WIFI配置模式
-//	err := dobot.SetWIFIConfigMode(true)
-//	if err != nil {
-//	    log.Printf("设置WIFI配置模式失败: %v", err)
-//	} else {
-//	    log.Printf("WIFI配置模式已启用")
-//	}
 func (dobot *Dobot) SetWIFIConfigMode(enable bool) error {
 	message := &Message{
 		Id:       ProtocolWIFIConfigMode,
@@ -5368,20 +4029,6 @@ func (dobot *Dobot) SetWIFIConfigMode(enable bool) error {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取WIFI配置模式状态
-//	enabled, err := dobot.GetWIFIConfigMode()
-//	if err != nil {
-//	    log.Printf("获取WIFI配置模式状态失败: %v", err)
-//	} else {
-//	    if enabled {
-//	        log.Printf("当前处于WIFI配置模式")
-//	    } else {
-//	        log.Printf("当前不在WIFI配置模式")
-//	    }
-//	}
 func (dobot *Dobot) GetWIFIConfigMode() (bool, error) {
 	message := &Message{
 		Id:       ProtocolWIFIConfigMode,
@@ -5415,16 +4062,6 @@ func (dobot *Dobot) GetWIFIConfigMode() (bool, error) {
 //   - 未处于配置模式
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置WIFI网络SSID
-//	err := dobot.SetWIFISSID("MyNetwork")
-//	if err != nil {
-//	    log.Printf("设置WIFI SSID失败: %v", err)
-//	} else {
-//	    log.Printf("WIFI SSID设置成功")
-//	}
 func (dobot *Dobot) SetWIFISSID(ssid string) error {
 	if ssid == "" {
 		return errors.New("invalid params: empty ssid")
@@ -5483,16 +4120,6 @@ func (dobot *Dobot) GetWIFISSID() (string, error) {
 //   - 未先设置SSID
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置WIFI网络密码
-//	err := dobot.SetWIFIPassword("MyPassword123")
-//	if err != nil {
-//	    log.Printf("设置WIFI密码失败: %v", err)
-//	} else {
-//	    log.Printf("WIFI密码设置成功")
-//	}
 func (dobot *Dobot) SetWIFIPassword(password string) error {
 	if password == "" {
 		return errors.New("invalid params: empty password")
@@ -5543,16 +4170,6 @@ func (dobot *Dobot) GetWIFIPassword() (string, error) {
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取PTP运动时间
-//	time, err := dobot.GetPTPTime()
-//	if err != nil {
-//	    log.Printf("获取PTP运动时间失败: %v", err)
-//	} else {
-//	    log.Printf("预计执行时间: %.2f秒", time)
-//	}
 func (dobot *Dobot) GetPTPTime() (float32, error) {
 	message := &Message{
 		Id:       ProtocolPTPTime,
@@ -5591,25 +4208,6 @@ const (
 //   - 通信错误
 //   - 设备未连接
 //   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取固件模式
-//	mode, err := dobot.GetFirmwareMode()
-//	if err != nil {
-//	    log.Printf("获取固件模式失败: %v", err)
-//	    return
-//	}
-//	switch mode {
-//	case FirmwareModeNormal:
-//	    log.Printf("固件处于正常工作模式")
-//	case FirmwareModeUpgrade:
-//	    log.Printf("固件处于升级模式")
-//	case FirmwareModeCalibrate:
-//	    log.Printf("固件处于校准模式")
-//	default:
-//	    log.Printf("未知的固件模式: %d", mode)
-//	}
 func (dobot *Dobot) GetFirmwareMode() (FirmwareMode, error) {
 	message := &Message{
 		Id:       ProtocolFirmwareMode,
@@ -5647,16 +4245,6 @@ func (dobot *Dobot) GetFirmwareMode() (FirmwareMode, error) {
 //   - 机械臂被锁定
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 设置丢步检测阈值为0.5度
-//	index, err := dobot.SetLostStepParams(0.5, true)
-//	if err != nil {
-//	    log.Printf("设置丢步参数失败: %v", err)
-//	} else {
-//	    log.Printf("丢步参数设置成功，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetLostStepParams(threshold float32, isQueued bool) (uint64, error) {
 	message := &Message{
 		Id:       ProtocolLostStepSet,
@@ -5695,16 +4283,6 @@ func (dobot *Dobot) SetLostStepParams(threshold float32, isQueued bool) (uint64,
 //   - 机械臂处于报警状态
 //   - 通信错误
 //   - 设备未连接"
-//
-// @Example
-//
-//	// 执行丢步检测
-//	index, err := dobot.SetLostStepCmd(true)
-//	if err != nil {
-//	    log.Printf("执行丢步检测失败: %v", err)
-//	} else {
-//	    log.Printf("丢步检测命令已发送，指令索引: %d", index)
-//	}
 func (dobot *Dobot) SetLostStepCmd(isQueued bool) (uint64, error) {
 	message := &Message{
 		Id:       ProtocolLostStepDetect,
@@ -6037,27 +4615,6 @@ func (dobot *Dobot) GetWIFIConnectStatus(ctx context.Context) (bool, error) {
 //   - 设备未连接
 //   - 响应数据无效
 //   - 参数无效"
-//
-// @Example
-//
-//	// 获取IO引脚的复用功能
-//	function, err := dobot.GetIOMultiplexing(1)
-//	if err != nil {
-//	    log.Printf("获取IO复用功能失败: %v", err)
-//	    return
-//	}
-//	switch function {
-//	case IOFunctionDO:
-//	    log.Printf("IO引脚配置为数字输出")
-//	case IOFunctionPWM:
-//	    log.Printf("IO引脚配置为PWM输出")
-//	case IOFunctionDI:
-//	    log.Printf("IO引脚配置为数字输入")
-//	case IOFunctionADC:
-//	    log.Printf("IO引脚配置为模拟输入")
-//	default:
-//	    log.Printf("IO引脚未配置")
-//	}
 func (dobot *Dobot) GetIOMultiplexing(ioMultiplexing *IOMultiplexing) (*IOMultiplexing, error) {
 	message := &Message{
 		Id:       ProtocolIOMultiplexing,
@@ -6093,20 +4650,6 @@ func (dobot *Dobot) GetIOMultiplexing(ioMultiplexing *IOMultiplexing) (*IOMultip
 //   - 响应数据无效
 //   - 参数无效
 //   - IO引脚未配置为数字输出"
-//
-// @Example
-//
-//	// 获取IO引脚的数字输出状态
-//	level, err := dobot.GetIODO(1)
-//	if err != nil {
-//	    log.Printf("获取IO数字输出状态失败: %v", err)
-//	    return
-//	}
-//	if level {
-//	    log.Printf("IO引脚输出高电平")
-//	} else {
-//	    log.Printf("IO引脚输出低电平")
-//	}
 func (dobot *Dobot) GetIODO(ioDO *IODO) (*IODO, error) {
 	message := &Message{
 		Id:       ProtocolIODO,
