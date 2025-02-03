@@ -149,7 +149,7 @@ func (dobot *Dobot) Connect(ctx context.Context, portName string, baudrate uint3
 //	    log.Printf("序列号设置验证失败")
 //	    return
 //	}
-func (dobot *Dobot) SetDeviceSN(sn string) error {
+func (dobot *Dobot) SetDeviceSN(ctx context.Context, sn string) error {
 	if sn == "" {
 		return errors.New("invalid params: empty sn")
 	}
@@ -162,7 +162,7 @@ func (dobot *Dobot) SetDeviceSN(sn string) error {
 	writer.WriteString(sn)
 	writer.WriteByte(0) // 添加一个字节 0x00 作为校验字节
 	message.Params = writer.Bytes()
-	_, err := dobot.connector.SendMessage(context.Background(), message)
+	_, err := dobot.connector.SendMessage(ctx, message)
 	return err
 }
 
@@ -198,17 +198,17 @@ func (dobot *Dobot) SetDeviceSN(sn string) error {
 //	} else {
 //	    log.Printf("设备序列号: %s", sn)
 //	}
-func (dobot *Dobot) GetDeviceSN() (string, error) {
+func (dobot *Dobot) GetDeviceSN(ctx context.Context) (string, error) {
 	message := &Message{
 		Id:       ProtocolDeviceSN,
 		RW:       false,
 		IsQueued: false,
 	}
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
+	resp, err := dobot.connector.SendMessage(ctx, message)
 	if err != nil {
 		return "", err
 	}
-	return string(resp.Params), nil
+	return string(resp.Data()), nil
 }
 
 // SetDeviceName 设置设备名称
@@ -232,7 +232,7 @@ func (dobot *Dobot) GetDeviceSN() (string, error) {
 //	if err != nil {
 //	    log.Printf("设置设备名称失败: %v", err)
 //	}
-func (dobot *Dobot) SetDeviceName(name string) error {
+func (dobot *Dobot) SetDeviceName(ctx context.Context, name string) error {
 	if name == "" {
 		return errors.New("invalid params: empty name")
 	}
@@ -243,7 +243,7 @@ func (dobot *Dobot) SetDeviceName(name string) error {
 	}
 	message.Params = []byte(name)
 	message.Params = append(message.Params, 0) // 添加一个字节 0x00 作为校验字节
-	_, err := dobot.connector.SendMessage(context.Background(), message)
+	_, err := dobot.connector.SendMessage(ctx, message)
 	return err
 }
 
@@ -266,17 +266,17 @@ func (dobot *Dobot) SetDeviceName(name string) error {
 //	} else {
 //	    log.Printf("设备名称: %s", name)
 //	}
-func (dobot *Dobot) GetDeviceName() (string, error) {
+func (dobot *Dobot) GetDeviceName(ctx context.Context) (string, error) {
 	message := &Message{
 		Id:       ProtocolDeviceName,
 		RW:       false,
 		IsQueued: false,
 	}
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
+	resp, err := dobot.connector.SendMessage(ctx, message)
 	if err != nil {
 		return "", err
 	}
-	return string(resp.Params), nil
+	return string(resp.Data()), nil
 }
 
 // GetDeviceVersion 获取设备版本信息
@@ -328,18 +328,17 @@ func (dobot *Dobot) GetDeviceName() (string, error) {
 //	    log.Printf("警告：当前软件可能与该版本硬件不兼容")
 //	    return
 //	}
-func (dobot *Dobot) GetDeviceVersion() (majorVersion, minorVersion, revision, hwVersion uint8, err error) {
+func (dobot *Dobot) GetDeviceVersion(ctx context.Context) (majorVersion, minorVersion, revision, hwVersion uint8, err error) {
 	message := &Message{
 		Id:       ProtocolDeviceVersion,
 		RW:       false,
 		IsQueued: false,
 	}
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
+	resp, err := dobot.connector.SendMessage(ctx, message)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
-	data := resp.Data()
-	return data[0], data[1], data[2], data[3], nil
+	return resp.Params[0], resp.Params[1], resp.Params[2], resp.Params[3], nil
 }
 
 // SetDeviceWithL 设置设备L轴
@@ -388,7 +387,7 @@ func (dobot *Dobot) GetDeviceVersion() (majorVersion, minorVersion, revision, hw
 //	    log.Printf("L轴启用失败")
 //	    return
 //	}
-func (dobot *Dobot) SetDeviceWithL(isWithL bool, version uint8) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetDeviceWithL(ctx context.Context, isWithL bool, version uint8) (uint64, error) {
 	message := &Message{
 		Id:       ProtocolDeviceWithL,
 		RW:       true,
@@ -399,13 +398,11 @@ func (dobot *Dobot) SetDeviceWithL(isWithL bool, version uint8) (queuedCmdIndex 
 		message.Params[0] = 1
 	}
 	message.Params[1] = version
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
+	resp, err := dobot.connector.SendMessage(ctx, message)
 	if err != nil {
 		return 0, err
 	}
-	data := resp.Data()
-	queuedCmdIndex = binary.LittleEndian.Uint64(data)
-	return queuedCmdIndex, nil
+	return resp.Uint64(), nil
 }
 
 // GetDeviceWithL 获取设备L轴状态
@@ -438,18 +435,17 @@ func (dobot *Dobot) SetDeviceWithL(isWithL bool, version uint8) (queuedCmdIndex 
 //	} else {
 //	    log.Printf("L轴功能未启用")
 //	}
-func (dobot *Dobot) GetDeviceWithL() (bool, error) {
+func (dobot *Dobot) GetDeviceWithL(ctx context.Context) (bool, error) {
 	message := &Message{
 		Id:       ProtocolDeviceWithL,
 		RW:       false,
 		IsQueued: false,
 	}
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
+	resp, err := dobot.connector.SendMessage(ctx, message)
 	if err != nil {
 		return false, err
 	}
-	data := resp.Data()
-	return data[0] != 0, nil
+	return resp.Bool(), nil
 }
 
 // GetDeviceTime 获取设备运行时间
@@ -486,18 +482,17 @@ func (dobot *Dobot) GetDeviceWithL() (bool, error) {
 //	if hours > 100 {
 //	    log.Printf("提示：设备运行超过100小时，建议进行例行维护")
 //	}
-func (dobot *Dobot) GetDeviceTime() (uint32, error) {
+func (dobot *Dobot) GetDeviceTime(ctx context.Context) (uint32, error) {
 	message := &Message{
 		Id:       ProtocolDeviceTime,
 		RW:       false,
 		IsQueued: false,
 	}
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
+	resp, err := dobot.connector.SendMessage(ctx, message)
 	if err != nil {
 		return 0, err
 	}
-	data := resp.Data()
-	return binary.LittleEndian.Uint32(data), nil
+	return resp.Uint32(), nil
 }
 
 // GetDeviceInfo 获取设备信息
@@ -552,7 +547,9 @@ func (dobot *Dobot) GetDeviceInfo() (*DeviceCountInfo, error) {
 		return nil, err
 	}
 	info := &DeviceCountInfo{}
-	binary.Read(resp.Reader(), binary.LittleEndian, info)
+	if err := resp.Read(info); err != nil {
+		return nil, err
+	}
 	return info, nil
 }
 
@@ -609,7 +606,9 @@ func (dobot *Dobot) GetPose() (*Pose, error) {
 		return nil, err
 	}
 	pose := &Pose{}
-	binary.Read(resp.Reader(), binary.LittleEndian, pose)
+	if err := resp.Read(pose); err != nil {
+		return nil, err
+	}
 	return pose, nil
 }
 
@@ -705,7 +704,9 @@ func (dobot *Dobot) GetKinematics() (*Kinematics, error) {
 		return nil, err
 	}
 	kinematics := &Kinematics{}
-	binary.Read(resp.Reader(), binary.LittleEndian, kinematics)
+	if err := resp.Read(kinematics); err != nil {
+		return nil, err
+	}
 	return kinematics, nil
 }
 
@@ -723,10 +724,7 @@ func (dobot *Dobot) GetPoseL() (float32, error) {
 	if err != nil {
 		return 0, err
 	}
-	data := resp.Data()
-	var value float32
-	binary.Decode(data, binary.LittleEndian, &value)
-	return value, nil
+	return resp.Float32(), nil
 }
 
 // GetAlarmsState 获取报警状态
@@ -743,7 +741,7 @@ func (dobot *Dobot) GetAlarmsState() ([]uint8, error) {
 	if err != nil {
 		return nil, err
 	}
-	return resp.Params, nil
+	return resp.Data(), nil
 }
 
 // ClearAllAlarmsState 清除所有报警状态
@@ -767,7 +765,7 @@ func (dobot *Dobot) ClearAllAlarmsState() error {
 // @Param isQueued query bool true "是否队列执行"
 // @Success 200 {number} uint64 "返回命令队列索引"
 // @Failure 400 {object} error "设置HOME参数失败时返回错误信息"
-func (dobot *Dobot) SetHOMEParams(params *HOMEParams, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetHOMEParams(params *HOMEParams, isQueued bool) (uint64, error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
@@ -783,8 +781,7 @@ func (dobot *Dobot) SetHOMEParams(params *HOMEParams, isQueued bool) (queuedCmdI
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	return resp.Uint64(), nil
 }
 
 // GetHOMEParams 获取HOME参数
@@ -803,8 +800,8 @@ func (dobot *Dobot) GetHOMEParams() (*HOMEParams, error) {
 		return nil, err
 	}
 	params := &HOMEParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
-		return nil, fmt.Errorf("failed to read HOME params: %v", err)
+	if err := resp.Read(params); err != nil {
+		return nil, err
 	}
 	return params, nil
 }
@@ -860,7 +857,7 @@ func (dobot *Dobot) GetHOMEParams() (*HOMEParams, error) {
 //	    }
 //	    time.Sleep(100 * time.Millisecond)
 //	}
-func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd, isQueued bool) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd, isQueued bool) (uint64, error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
@@ -876,8 +873,7 @@ func (dobot *Dobot) SetHOMECmd(cmd *HOMECmd, isQueued bool) (queuedCmdIndex uint
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	return resp.Uint64(), nil
 }
 
 // SetAutoLevelingCmd 执行自动调平
@@ -954,8 +950,7 @@ func (dobot *Dobot) SetAutoLevelingCmd(cmd *AutoLevelingCmd, isQueued bool) (que
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	return resp.Uint64(), nil
 }
 
 // GetAutoLevelingResult 获取自动调平结果
@@ -998,7 +993,7 @@ func (dobot *Dobot) GetAutoLevelingResult() (float32, error) {
 	if err != nil {
 		return 0, err
 	}
-	return math.Float32frombits(binary.LittleEndian.Uint32(resp.Data())), nil
+	return resp.Float32(), nil
 }
 
 // SetHHTTrigMode 设置手持示教触发模式
@@ -1081,7 +1076,7 @@ func (dobot *Dobot) GetHHTTrigMode() (HHTTrigMode, error) {
 	if err != nil {
 		return 0, err
 	}
-	return HHTTrigMode(resp.Data()[0]), nil
+	return HHTTrigMode(resp.Params[0]), nil
 }
 
 // SetHHTTrigOutputEnabled 设置手持示教触发输出使能
@@ -1161,7 +1156,7 @@ func (dobot *Dobot) GetHHTTrigOutputEnabled() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return resp.Data()[0] != 0, nil
+	return resp.Bool(), nil
 }
 
 // GetHHTTrigOutput 获取手持示教触发输出状态
@@ -1204,7 +1199,7 @@ func (dobot *Dobot) GetHHTTrigOutput() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return resp.Data()[0] != 0, nil
+	return resp.Bool(), nil
 }
 
 // SetEndEffectorParams 设置末端执行器参数
@@ -1271,8 +1266,10 @@ func (dobot *Dobot) SetEndEffectorParams(params *EndEffectorParams, isQueued boo
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetEndEffectorParams 获取末端执行器参数
@@ -1314,8 +1311,8 @@ func (dobot *Dobot) GetEndEffectorParams() (*EndEffectorParams, error) {
 		return nil, err
 	}
 	params := &EndEffectorParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
-		return nil, fmt.Errorf("failed to read END_EFFECTOR_PARAMS: %v", err)
+	if err := resp.Read(params); err != nil {
+		return nil, err
 	}
 	return params, nil
 }
@@ -1387,8 +1384,10 @@ func (dobot *Dobot) SetEndEffectorLaser(enableCtrl bool, on bool, isQueued bool)
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetEndEffectorLaser 获取末端激光状态
@@ -1442,8 +1441,7 @@ func (dobot *Dobot) GetEndEffectorLaser() (isCtrlEnabled bool, isOn bool, err er
 	if err != nil {
 		return false, false, err
 	}
-	data := resp.Data()
-	return data[0] != 0, data[1] != 0, nil
+	return resp.Params[0] != 0, resp.Params[1] != 0, nil
 }
 
 // SetEndEffectorSuctionCup 设置末端吸盘状态
@@ -1514,8 +1512,10 @@ func (dobot *Dobot) SetEndEffectorSuctionCup(enableCtrl bool, suck bool, isQueue
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetEndEffectorSuctionCup 获取末端执行器吸盘状态
@@ -1569,8 +1569,7 @@ func (dobot *Dobot) GetEndEffectorSuctionCup() (isCtrlEnabled bool, isSucked boo
 	if err != nil {
 		return false, false, err
 	}
-	data := resp.Data()
-	return data[0] != 0, data[1] != 0, nil
+	return resp.Params[0] != 0, resp.Params[1] != 0, nil
 }
 
 // SetEndEffectorGripper 设置末端夹爪状态
@@ -1640,8 +1639,10 @@ func (dobot *Dobot) SetEndEffectorGripper(enableCtrl bool, grip bool, isQueued b
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetEndEffectorGripper 获取末端执行器夹爪状态
@@ -1688,8 +1689,7 @@ func (dobot *Dobot) GetEndEffectorGripper() (isCtrlEnabled bool, isGripped bool,
 	if err != nil {
 		return false, false, err
 	}
-	data := resp.Data()
-	return data[0] != 0, data[1] != 0, nil
+	return resp.Params[0] != 0, resp.Params[1] != 0, nil
 }
 
 // SetArmOrientation 设置机械臂方向
@@ -1748,8 +1748,10 @@ func (dobot *Dobot) SetArmOrientation(armOrientation ArmOrientation, isQueued bo
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetArmOrientation 获取机械臂方向
@@ -1792,7 +1794,7 @@ func (dobot *Dobot) GetArmOrientation() (ArmOrientation, error) {
 	if err != nil {
 		return 0, err
 	}
-	return ArmOrientation(resp.Data()[0]), nil
+	return ArmOrientation(resp.Params[0]), nil
 }
 
 // SetJOGJointParams 设置关节点动参数
@@ -1853,8 +1855,10 @@ func (dobot *Dobot) SetJOGJointParams(params *JOGJointParams, isQueued bool) (qu
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetJOGJointParams 获取关节点动参数
@@ -1899,7 +1903,7 @@ func (dobot *Dobot) GetJOGJointParams() (*JOGJointParams, error) {
 		return nil, err
 	}
 	params := &JOGJointParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read JOG joint params: %v", err)
 	}
 	return params, nil
@@ -1963,8 +1967,10 @@ func (dobot *Dobot) SetJOGCoordinateParams(params *JOGCoordinateParams, isQueued
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetJOGCoordinateParams 获取坐标点动参数
@@ -2016,7 +2022,7 @@ func (dobot *Dobot) GetJOGCoordinateParams() (*JOGCoordinateParams, error) {
 	}
 
 	params := &JOGCoordinateParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read JOG coordinate params: %v", err)
 	}
 	return params, nil
@@ -2059,7 +2065,7 @@ func (dobot *Dobot) GetJOGCoordinateParams() (*JOGCoordinateParams, error) {
 //	    return
 //	}
 //	log.Printf("滑轨点动参数设置成功，指令索引: %d", index)
-func (dobot *Dobot) SetJOGLParams(params *JOGLParams) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetJOGLParams(params *JOGLParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
@@ -2067,15 +2073,21 @@ func (dobot *Dobot) SetJOGLParams(params *JOGLParams) (queuedCmdIndex uint64, er
 	message := &Message{
 		Id:       ProtocolJOGLParams,
 		RW:       true,
-		IsQueued: false, // C++实现中强制为false
+		IsQueued: isQueued,
 	}
 
 	writer := &bytes.Buffer{}
 	binary.Write(writer, binary.LittleEndian, params)
 	message.Params = writer.Bytes()
 
-	_, err = dobot.connector.SendMessage(context.Background(), message)
-	return 0, err // 由于IsQueued为false，所以不返回queuedCmdIndex
+	resp, err := dobot.connector.SendMessage(context.Background(), message)
+	if err != nil {
+		return 0, err
+	}
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, err
 }
 
 // GetJOGLParams 获取JOGL参数
@@ -2119,7 +2131,7 @@ func (dobot *Dobot) GetJOGLParams() (*JOGLParams, error) {
 	}
 
 	params := &JOGLParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read JOG L params: %v", err)
 	}
 	return params, nil
@@ -2184,8 +2196,10 @@ func (dobot *Dobot) SetJOGCommonParams(params *JOGCommonParams, isQueued bool) (
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetJOGCommonParams 获取JOG通用参数
@@ -2229,7 +2243,7 @@ func (dobot *Dobot) GetJOGCommonParams() (*JOGCommonParams, error) {
 	}
 
 	params := &JOGCommonParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read JOG common params: %v", err)
 	}
 	return params, nil
@@ -2306,8 +2320,10 @@ func (dobot *Dobot) SetJOGCmd(cmd *JOGCmd, isQueued bool) (queuedCmdIndex uint64
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetPTPJointParams 设置PTP关节参数
@@ -2370,8 +2386,10 @@ func (dobot *Dobot) SetPTPJointParams(params *PTPJointParams, isQueued bool) (qu
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetPTPJointParams 获取PTP关节参数
@@ -2403,7 +2421,7 @@ func (dobot *Dobot) GetPTPJointParams() (*PTPJointParams, error) {
 	}
 
 	params := &PTPJointParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read PTP joint params: %v", err)
 	}
 	return params, nil
@@ -2475,8 +2493,10 @@ func (dobot *Dobot) SetPTPCoordinateParams(params *PTPCoordinateParams, isQueued
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetPTPCoordinateParams 获取PTP坐标运动参数
@@ -2524,7 +2544,7 @@ func (dobot *Dobot) GetPTPCoordinateParams() (*PTPCoordinateParams, error) {
 	}
 
 	params := &PTPCoordinateParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read PTP coordinate params: %v", err)
 	}
 	return params, nil
@@ -2592,8 +2612,10 @@ func (dobot *Dobot) SetPTPLParams(params *PTPLParams, isQueued bool) (queuedCmdI
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetPTPLParams 获取PTPL运动参数
@@ -2637,7 +2659,7 @@ func (dobot *Dobot) GetPTPLParams() (*PTPLParams, error) {
 	}
 
 	params := &PTPLParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read PTP L params: %v", err)
 	}
 	return params, nil
@@ -2705,8 +2727,10 @@ func (dobot *Dobot) SetPTPJumpParams(params *PTPJumpParams, isQueued bool) (queu
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetPTPJumpParams 获取PTP跳跃参数
@@ -2750,7 +2774,7 @@ func (dobot *Dobot) GetPTPJumpParams() (*PTPJumpParams, error) {
 	}
 
 	params := &PTPJumpParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read PTP jump params: %v", err)
 	}
 	return params, nil
@@ -2820,8 +2844,10 @@ func (dobot *Dobot) SetPTPJump2Params(params *PTPJump2Params, isQueued bool) (qu
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetPTPJump2Params 获取PTP跳跃2参数
@@ -2867,7 +2893,7 @@ func (dobot *Dobot) GetPTPJump2Params() (*PTPJump2Params, error) {
 	}
 
 	params := &PTPJump2Params{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read PTP jump2 params: %v", err)
 	}
 	return params, nil
@@ -2935,8 +2961,10 @@ func (dobot *Dobot) SetPTPCommonParams(params *PTPCommonParams, isQueued bool) (
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 func (dobot *Dobot) GetPTPCommonParams() (*PTPCommonParams, error) {
@@ -2951,7 +2979,7 @@ func (dobot *Dobot) GetPTPCommonParams() (*PTPCommonParams, error) {
 	}
 
 	params := &PTPCommonParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read PTP common params: %v", err)
 	}
 	return params, nil
@@ -2980,8 +3008,10 @@ func (dobot *Dobot) SetPTPCmd(cmd *PTPCmd, isQueued bool) (queuedCmdIndex uint64
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetPTPWithLCmd 设置带L轴的PTP运动指令
@@ -3060,8 +3090,10 @@ func (dobot *Dobot) SetPTPWithLCmd(cmd *PTPWithLCmd, isQueued bool) (queuedCmdIn
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetCPParams 设置CP参数
@@ -3088,8 +3120,10 @@ func (dobot *Dobot) SetCPParams(params *CPParams, isQueued bool) (queuedCmdIndex
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetCPCmd 设置连续运动命令
@@ -3153,8 +3187,10 @@ func (dobot *Dobot) SetCPCmd(cmd *CPCmd, isQueued bool) (queuedCmdIndex uint64, 
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetCPLECmd 设置连续运动扩展命令
@@ -3219,8 +3255,10 @@ func (dobot *Dobot) SetCPLECmd(cpMode uint8, x, y, z, power float32, isQueued bo
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetCPRHoldEnable 设置CPR保持使能
@@ -3304,7 +3342,7 @@ func (dobot *Dobot) GetCPRHoldEnable() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return resp.Data()[0] != 0, nil
+	return resp.Params[0] != 0, nil
 }
 
 // SetCPCommonParams 设置CP通用参数
@@ -3367,8 +3405,10 @@ func (dobot *Dobot) SetCPCommonParams(params *CPCommonParams, isQueued bool) (qu
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetCPCommonParams 获取CP通用参数
@@ -3388,7 +3428,7 @@ func (dobot *Dobot) GetCPCommonParams() (*CPCommonParams, error) {
 	}
 
 	params := &CPCommonParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read CP common params: %v", err)
 	}
 	return params, nil
@@ -3438,7 +3478,7 @@ func (dobot *Dobot) GetCPCommonParams() (*CPCommonParams, error) {
 //	} else {
 //	    log.Printf("ARC参数设置成功，指令索引: %d", index)
 //	}
-func (dobot *Dobot) SetARCParams(params *ARCParams) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetARCParams(params *ARCParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
@@ -3446,7 +3486,7 @@ func (dobot *Dobot) SetARCParams(params *ARCParams) (queuedCmdIndex uint64, err 
 	message := &Message{
 		Id:       ProtocolARCParams,
 		RW:       true,
-		IsQueued: true,
+		IsQueued: isQueued,
 	}
 	writer := &bytes.Buffer{}
 	binary.Write(writer, binary.LittleEndian, params)
@@ -3455,8 +3495,10 @@ func (dobot *Dobot) SetARCParams(params *ARCParams) (queuedCmdIndex uint64, err 
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetARCParams 获取ARC参数
@@ -3504,7 +3546,7 @@ func (dobot *Dobot) GetARCParams() (*ARCParams, error) {
 	}
 
 	params := &ARCParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read ARC params: %v", err)
 	}
 	return params, nil
@@ -3548,7 +3590,7 @@ func (dobot *Dobot) GetARCParams() (*ARCParams, error) {
 //	} else {
 //	    log.Printf("ARC运动指令设置成功，指令索引: %d", index)
 //	}
-func (dobot *Dobot) SetARCCmd(cmd *ARCCmd) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetARCCmd(cmd *ARCCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
@@ -3556,7 +3598,7 @@ func (dobot *Dobot) SetARCCmd(cmd *ARCCmd) (queuedCmdIndex uint64, err error) {
 	message := &Message{
 		Id:       ProtocolARCCmd,
 		RW:       true,
-		IsQueued: true,
+		IsQueued: isQueued,
 	}
 	writer := &bytes.Buffer{}
 	binary.Write(writer, binary.LittleEndian, cmd)
@@ -3567,8 +3609,10 @@ func (dobot *Dobot) SetARCCmd(cmd *ARCCmd) (queuedCmdIndex uint64, err error) {
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetCircleCmd 设置圆周运动命令
@@ -3613,7 +3657,7 @@ func (dobot *Dobot) SetARCCmd(cmd *ARCCmd) (queuedCmdIndex uint64, err error) {
 //	} else {
 //	    log.Printf("圆周运动指令设置成功，指令索引: %d", index)
 //	}
-func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if cmd == nil {
 		return 0, errors.New("invalid params: cmd is nil")
 	}
@@ -3621,7 +3665,7 @@ func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd) (queuedCmdIndex uint64, err err
 	message := &Message{
 		Id:       ProtocolCircleCmd,
 		RW:       true,
-		IsQueued: true,
+		IsQueued: isQueued,
 	}
 	writer := &bytes.Buffer{}
 	binary.Write(writer, binary.LittleEndian, cmd)
@@ -3632,8 +3676,10 @@ func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd) (queuedCmdIndex uint64, err err
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetARCCommonParams 设置ARC通用参数
@@ -3672,7 +3718,7 @@ func (dobot *Dobot) SetCircleCmd(cmd *CircleCmd) (queuedCmdIndex uint64, err err
 //	} else {
 //	    log.Printf("ARC通用参数设置成功，指令索引: %d", index)
 //	}
-func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams) (queuedCmdIndex uint64, err error) {
+func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams, isQueued bool) (queuedCmdIndex uint64, err error) {
 	if params == nil {
 		return 0, errors.New("invalid params: params is nil")
 	}
@@ -3680,7 +3726,7 @@ func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams) (queuedCmdIndex 
 	message := &Message{
 		Id:       ProtocolARCCommonParams,
 		RW:       true,
-		IsQueued: true,
+		IsQueued: isQueued,
 	}
 	writer := &bytes.Buffer{}
 	binary.Write(writer, binary.LittleEndian, params)
@@ -3690,8 +3736,10 @@ func (dobot *Dobot) SetARCCommonParams(params *ARCCommonParams) (queuedCmdIndex 
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // GetARCCommonParams 获取ARC通用参数
@@ -3736,7 +3784,7 @@ func (dobot *Dobot) GetARCCommonParams() (*ARCCommonParams, error) {
 	}
 
 	params := &ARCCommonParams{}
-	if err := binary.Read(resp.Reader(), binary.LittleEndian, params); err != nil {
+	if err := resp.Read(params); err != nil {
 		return nil, fmt.Errorf("failed to read ARC common params: %v", err)
 	}
 	return params, nil
@@ -3795,8 +3843,10 @@ func (dobot *Dobot) SetWAITCmd(cmd *WAITCmd, isQueued bool) (queuedCmdIndex uint
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetTRIGCmd 设置触发指令
@@ -3861,8 +3911,10 @@ func (dobot *Dobot) SetTRIGCmd(cmd *TRIGCmd, isQueued bool) (queuedCmdIndex uint
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetIOMultiplexing 设置IO复用功能
@@ -3927,8 +3979,10 @@ func (dobot *Dobot) SetIOMultiplexing(params *IOMultiplexing, isQueued bool) (qu
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetIODO 设置IO数字输出
@@ -3991,8 +4045,10 @@ func (dobot *Dobot) SetIODO(params *IODO, isQueued bool) (queuedCmdIndex uint64,
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetIOPWM 设置IO PWM输出
@@ -4059,8 +4115,10 @@ func (dobot *Dobot) SetIOPWM(params *IOPWM, isQueued bool) (queuedCmdIndex uint6
 		return 0, err
 	}
 
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetEMotor 设置扩展电机参数
@@ -4126,9 +4184,10 @@ func (dobot *Dobot) SetEMotor(params *EMotor, isQueued bool) (queuedCmdIndex uin
 	if err != nil {
 		return 0, err
 	}
-
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetEMotorS 设置扩展步进电机参数
@@ -4197,8 +4256,10 @@ func (dobot *Dobot) SetEMotorS(params *EMotorS, isQueued bool) (queuedCmdIndex u
 	if err != nil {
 		return 0, err
 	}
-	queuedCmdIndex = binary.LittleEndian.Uint64(resp.Data())
-	return queuedCmdIndex, nil
+	if isQueued {
+		return resp.Uint64(), nil
+	}
+	return 0, nil
 }
 
 // SetColorSensor 设置颜色传感器
@@ -4302,8 +4363,7 @@ func (dobot *Dobot) GetColorSensor() (r, g, b uint8, err error) {
 	if err != nil {
 		return 0, 0, 0, err
 	}
-	data := resp.Data()
-	return data[0], data[1], data[2], nil
+	return resp.Params[0], resp.Params[1], resp.Params[2], nil
 }
 
 // SetInfraredSensor 设置红外传感器
@@ -4404,8 +4464,7 @@ func (dobot *Dobot) GetInfraredSensor(port InfraredPort) (uint8, error) {
 	if err != nil {
 		return 0, err
 	}
-	data := resp.Data()
-	return data[0], nil
+	return resp.Params[0], nil
 }
 
 // SetAngleSensorStaticError 设置角度传感器静态误差
@@ -4685,10 +4744,7 @@ func (dobot *Dobot) GetBaseDecoderStaticError() (float32, error) {
 	if err != nil {
 		return 0, err
 	}
-	reader := resp.Reader()
-	var baseDecoderError float32
-	binary.Read(reader, binary.LittleEndian, &baseDecoderError)
-	return baseDecoderError, nil
+	return resp.Float32(), nil
 }
 
 // SetLRHandCalibrateValue 设置左右手校准值
@@ -4772,10 +4828,7 @@ func (dobot *Dobot) GetLRHandCalibrateValue() (float32, error) {
 	if err != nil {
 		return 0, err
 	}
-	reader := resp.Reader()
-	var lrHandCalibrateValue float32
-	binary.Read(reader, binary.LittleEndian, &lrHandCalibrateValue)
-	return lrHandCalibrateValue, nil
+	return resp.Float32(), nil
 }
 
 // SetQueuedCmdStartExec 开始执行指令队列
@@ -5027,9 +5080,7 @@ func (dobot *Dobot) GetQueuedCmdLeftSpace() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	var leftSpace uint32
-	binary.Read(resp.Reader(), binary.LittleEndian, &leftSpace)
-	return leftSpace, nil
+	return resp.Uint32(), nil
 }
 
 // GetQueuedCmdCurrentIndex 获取当前队列命令索引
@@ -5069,9 +5120,7 @@ func (dobot *Dobot) GetQueuedCmdCurrentIndex() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	var currentIndex uint64
-	binary.Read(resp.Reader(), binary.LittleEndian, &currentIndex)
-	return currentIndex, nil
+	return resp.Uint64(), nil
 }
 
 // GetQueuedCmdMotionFinish 获取队列命令运动是否完成
@@ -5115,9 +5164,7 @@ func (dobot *Dobot) GetQueuedCmdMotionFinish() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	var motionFinish bool
-	binary.Read(resp.Reader(), binary.LittleEndian, &motionFinish)
-	return motionFinish, nil
+	return resp.Bool(), nil
 }
 
 // SetPTPPOCmd 设置PTP并行输出命令
@@ -5189,9 +5236,7 @@ func (dobot *Dobot) SetPTPPOCmd(ptpCmd *PTPCmd, parallelCmd []ParallelOutputCmd)
 		return 0, err
 	}
 
-	reader := resp.Reader()
-	binary.Read(reader, binary.LittleEndian, &queuedCmdIndex)
-	return queuedCmdIndex, nil
+	return resp.Uint64(), nil
 }
 
 // SetPTPPOWithLCmd 设置带L轴的PTP并行输出命令
@@ -5260,9 +5305,7 @@ func (dobot *Dobot) SetPTPPOWithLCmd(ptpWithLCmd *PTPWithLCmd, parallelCmd []Par
 		return 0, err
 	}
 
-	reader := resp.Reader()
-	binary.Read(reader, binary.LittleEndian, &queuedCmdIndex)
-	return queuedCmdIndex, nil
+	return resp.Uint64(), nil
 }
 
 // SetWIFIConfigMode 设置WIFI配置模式
@@ -5349,10 +5392,7 @@ func (dobot *Dobot) GetWIFIConfigMode() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	reader := resp.Reader()
-	var mode bool
-	binary.Read(reader, binary.LittleEndian, &mode)
-	return mode, nil
+	return resp.Bool(), nil
 }
 
 // SetWIFISSID 设置WIFI SSID
@@ -5419,7 +5459,7 @@ func (dobot *Dobot) GetWIFISSID() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(resp.Params), nil
+	return string(resp.Data()), nil
 }
 
 // SetWIFIPassword 设置WIFI密码
@@ -5487,7 +5527,7 @@ func (dobot *Dobot) GetWIFIPassword() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(resp.Params), nil
+	return string(resp.Data()), nil
 }
 
 // GetPTPTime 获取PTP运动时间
@@ -5523,12 +5563,7 @@ func (dobot *Dobot) GetPTPTime() (float32, error) {
 	if err != nil {
 		return 0, err
 	}
-	reader := resp.Reader()
-	var time float32
-	if err := binary.Read(reader, binary.LittleEndian, &time); err != nil {
-		return 0, fmt.Errorf("failed to read PTP time: %v", err)
-	}
-	return time, nil
+	return resp.Float32(), nil
 }
 
 // FirmwareMode 固件模式
@@ -5585,7 +5620,7 @@ func (dobot *Dobot) GetFirmwareMode() (FirmwareMode, error) {
 	if err != nil {
 		return 0, err
 	}
-	return FirmwareMode(resp.Data()[0]), nil
+	return FirmwareMode(resp.Params[0]), nil
 }
 
 // SetLostStepParams 设置丢步参数
@@ -5638,12 +5673,7 @@ func (dobot *Dobot) SetLostStepParams(threshold float32, isQueued bool) (uint64,
 		return 0, err
 	}
 
-	reader := resp.Reader()
-	var queuedCmdIndex uint64
-	if err := binary.Read(reader, binary.LittleEndian, &queuedCmdIndex); err != nil {
-		return 0, fmt.Errorf("failed to read queued cmd index: %v", err)
-	}
-	return queuedCmdIndex, nil
+	return resp.Uint64(), nil
 }
 
 // SetLostStepCmd 设置丢步命令
@@ -5687,78 +5717,7 @@ func (dobot *Dobot) SetLostStepCmd(isQueued bool) (uint64, error) {
 		return 0, err
 	}
 
-	reader := resp.Reader()
-	var queuedCmdIndex uint64
-	if err := binary.Read(reader, binary.LittleEndian, &queuedCmdIndex); err != nil {
-		return 0, fmt.Errorf("failed to read queued cmd index: %v", err)
-	}
-	return queuedCmdIndex, nil
-}
-
-// GetJOGCmd 获取JOG运动指令状态
-// @Summary 获取当前JOG运动指令的状态
-// @Description 获取机械臂当前JOG（点动）模式下的运动状态信息。通过此函数
-// @Description 可以了解当前的运动模式、运动轴和运动方向等信息。这对于监控
-// @Description 和同步控制非常有用。
-//
-// @Return *JOGCmd "JOG运动状态：
-//   - isJoint: 当前运动模式（true为关节模式/false为坐标模式）
-//   - index: 当前运动轴索引
-//   - direction: 当前运动方向
-//     注意：返回的是最后一次设置的状态"
-//
-// @Return error "错误信息"
-// @Success 200 {object} *JOGCmd "返回JOG运动状态结构体"
-// @Failure 400 {error} "获取失败，可能的错误：
-//   - 通信错误
-//   - 设备未连接
-//   - 响应数据无效"
-//
-// @Example
-//
-//	// 获取当前JOG运动状态
-//	cmd, err := dobot.GetJOGCmd()
-//	if err != nil {
-//	    log.Printf("获取JOG运动状态失败: %v", err)
-//	    return
-//	}
-//
-//	// 输出状态信息
-//	log.Printf("当前JOG运动状态：")
-//	if cmd.IsJoint {
-//	    log.Printf("  模式: 关节运动")
-//	    log.Printf("  关节索引: %d", cmd.Index)
-//	} else {
-//	    log.Printf("  模式: 坐标运动")
-//	    axes := []string{"X", "Y", "Z", "R"}
-//	    log.Printf("  运动轴: %s", axes[cmd.Index])
-//	}
-//
-//	switch cmd.Direction {
-//	case 1:
-//	    log.Printf("  方向: 正向")
-//	case -1:
-//	    log.Printf("  方向: 负向")
-//	default:
-//	    log.Printf("  状态: 停止")
-//	}
-func (dobot *Dobot) GetJOGCmd() (*JOGCmd, error) {
-	message := &Message{
-		Id:       ProtocolJOGCmd,
-		RW:       false,
-		IsQueued: false,
-	}
-	resp, err := dobot.connector.SendMessage(context.Background(), message)
-	if err != nil {
-		return nil, err
-	}
-
-	cmd := &JOGCmd{}
-	reader := resp.Reader()
-	if err := binary.Read(reader, binary.LittleEndian, cmd); err != nil {
-		return nil, fmt.Errorf("failed to read JOG cmd: %v", err)
-	}
-	return cmd, nil
+	return resp.Uint64(), nil
 }
 
 // GetUART4PeripheralsType 获取UART4外设类型
@@ -5770,7 +5729,6 @@ func (dobot *Dobot) GetUART4PeripheralsType(ctx context.Context) (uint8, error) 
 		Id:       ProtocolCheckUART4PeripheralsModel,
 		RW:       false,
 		IsQueued: false,
-		Params:   []byte{},
 	}
 
 	response, err := dobot.connector.SendMessage(ctx, message)
@@ -5791,8 +5749,10 @@ func (dobot *Dobot) SetUART4PeripheralsEnable(ctx context.Context, isEnable bool
 		Id:       ProtocolUART4PeripheralsEnabled,
 		RW:       true,
 		IsQueued: false,
-		Params:   []byte{boolToByte(isEnable)},
 	}
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, isEnable)
+	message.Params = writer.Bytes()
 
 	_, err := dobot.connector.SendMessage(ctx, message)
 	return err
@@ -5815,7 +5775,7 @@ func (dobot *Dobot) GetUART4PeripheralsEnable(ctx context.Context) (bool, error)
 		return false, err
 	}
 
-	return response.Params[0] != 0, nil
+	return response.Bool(), nil
 }
 
 // PluseCmd 脉冲控制命令
@@ -5833,68 +5793,22 @@ type PluseCmd struct {
 // @Param isQueued bool "是否加入队列"
 // @Return (uint64, error) "返回队列索引（如果加入队列）和可能的错误"
 func (dobot *Dobot) SendPluse(ctx context.Context, pluseCmd *PluseCmd, isQueued bool) (uint64, error) {
-	params := make([]byte, 10) // 2个uint8 + 2个float32
-	params[0] = pluseCmd.ControlMode
-	params[1] = pluseCmd.Port
-	binary.LittleEndian.PutUint32(params[2:6], math.Float32bits(pluseCmd.Speed))
-	binary.LittleEndian.PutUint32(params[6:10], math.Float32bits(pluseCmd.Distance))
-
 	message := &Message{
 		Id:       ProtocolFunctionPulseMode,
 		RW:       true,
 		IsQueued: isQueued,
-		Params:   params,
 	}
-
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, pluseCmd)
+	message.Params = writer.Bytes()
 	response, err := dobot.connector.SendMessage(ctx, message)
 	if err != nil {
 		return 0, err
 	}
-
 	if isQueued {
-		reader := response.Reader()
-		var queuedCmdIndex uint64
-		if err := binary.Read(reader, binary.LittleEndian, &queuedCmdIndex); err != nil {
-			return 0, fmt.Errorf("failed to read queued cmd index: %v", err)
-		}
-		return queuedCmdIndex, nil
+		return response.Uint64(), nil
 	}
 	return 0, nil
-}
-
-// SendPluseEx 发送脉冲控制命令并等待执行完成
-// @Summary 发送脉冲控制命令并等待执行完成
-// @Description 发送脉冲控制命令，并等待命令执行完成
-// @Param pluseCmd PluseCmd "脉冲控制命令参数"
-// @Return error "可能的错误信息"
-func (dobot *Dobot) SendPluseEx(ctx context.Context, pluseCmd *PluseCmd) error {
-	index, err := dobot.SendPluse(ctx, pluseCmd, true)
-	if err != nil {
-		return err
-	}
-
-	for {
-		curIndex, err := dobot.GetQueuedCmdCurrentIndex()
-		if err != nil {
-			return err
-		}
-		if curIndex >= index {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-	}
-	return nil
-}
-
-func boolToByte(b bool) byte {
-	if b {
-		return 1
-	}
-	return 0
 }
 
 // WIFIIPAddress WIFI IP地址结构
@@ -5924,18 +5838,15 @@ type WIFIDNS struct {
 // @Param wifiIPAddress WIFIIPAddress "IP地址配置"
 // @Return error "可能的错误信息"
 func (dobot *Dobot) SetWIFIIPAddress(ctx context.Context, wifiIPAddress *WIFIIPAddress) error {
-	params := make([]byte, 5) // 1字节DHCP + 4字节IP地址
-	if wifiIPAddress.DHCP {
-		params[0] = 1
-	}
-	copy(params[1:], wifiIPAddress.Addr[:])
 
 	message := &Message{
 		Id:       ProtocolWIFIIPAddress,
 		RW:       true,
 		IsQueued: false,
-		Params:   params,
 	}
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, wifiIPAddress)
+	message.Params = writer.Bytes()
 
 	_, err := dobot.connector.SendMessage(ctx, message)
 	return err
@@ -5950,17 +5861,13 @@ func (dobot *Dobot) GetWIFIIPAddress(ctx context.Context) (*WIFIIPAddress, error
 		Id:       ProtocolWIFIIPAddress,
 		RW:       false,
 		IsQueued: false,
-		Params:   []byte{},
 	}
-
 	response, err := dobot.connector.SendMessage(ctx, message)
 	if err != nil {
 		return nil, err
 	}
-
 	result := &WIFIIPAddress{}
-	reader := response.Reader()
-	if err := binary.Read(reader, binary.LittleEndian, result); err != nil {
+	if err := response.Read(result); err != nil {
 		return nil, fmt.Errorf("failed to read WIFI IP address: %v", err)
 	}
 	return result, nil
@@ -5976,8 +5883,10 @@ func (dobot *Dobot) SetWIFINetmask(ctx context.Context, wifiNetmask *WIFINetmask
 		Id:       ProtocolWIFINetmask,
 		RW:       true,
 		IsQueued: false,
-		Params:   wifiNetmask.Addr[:],
 	}
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, wifiNetmask)
+	message.Params = writer.Bytes()
 
 	_, err := dobot.connector.SendMessage(ctx, message)
 	return err
@@ -5992,7 +5901,6 @@ func (dobot *Dobot) GetWIFINetmask(ctx context.Context) (*WIFINetmask, error) {
 		Id:       ProtocolWIFINetmask,
 		RW:       false,
 		IsQueued: false,
-		Params:   []byte{},
 	}
 
 	response, err := dobot.connector.SendMessage(ctx, message)
@@ -6001,8 +5909,7 @@ func (dobot *Dobot) GetWIFINetmask(ctx context.Context) (*WIFINetmask, error) {
 	}
 
 	result := &WIFINetmask{}
-	reader := response.Reader()
-	if err := binary.Read(reader, binary.LittleEndian, result); err != nil {
+	if err := response.Read(result); err != nil {
 		return nil, fmt.Errorf("failed to read WIFI netmask: %v", err)
 	}
 	return result, nil
@@ -6018,8 +5925,10 @@ func (dobot *Dobot) SetWIFIGateway(ctx context.Context, wifiGateway *WIFIGateway
 		Id:       ProtocolWIFIGateway,
 		RW:       true,
 		IsQueued: false,
-		Params:   wifiGateway.Addr[:],
 	}
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, wifiGateway)
+	message.Params = writer.Bytes()
 
 	_, err := dobot.connector.SendMessage(ctx, message)
 	return err
@@ -6034,7 +5943,6 @@ func (dobot *Dobot) GetWIFIGateway(ctx context.Context) (*WIFIGateway, error) {
 		Id:       ProtocolWIFIGateway,
 		RW:       false,
 		IsQueued: false,
-		Params:   []byte{},
 	}
 
 	response, err := dobot.connector.SendMessage(ctx, message)
@@ -6043,8 +5951,7 @@ func (dobot *Dobot) GetWIFIGateway(ctx context.Context) (*WIFIGateway, error) {
 	}
 
 	result := &WIFIGateway{}
-	reader := response.Reader()
-	if err := binary.Read(reader, binary.LittleEndian, result); err != nil {
+	if err := response.Read(result); err != nil {
 		return nil, fmt.Errorf("failed to read WIFI gateway: %v", err)
 	}
 	return result, nil
@@ -6060,8 +5967,10 @@ func (dobot *Dobot) SetWIFIDNS(ctx context.Context, wifiDNS *WIFIDNS) error {
 		Id:       ProtocolWIFIDNS,
 		RW:       true,
 		IsQueued: false,
-		Params:   wifiDNS.Addr[:],
 	}
+	writer := &bytes.Buffer{}
+	binary.Write(writer, binary.LittleEndian, wifiDNS)
+	message.Params = writer.Bytes()
 
 	_, err := dobot.connector.SendMessage(ctx, message)
 	return err
@@ -6076,7 +5985,6 @@ func (dobot *Dobot) GetWIFIDNS(ctx context.Context) (*WIFIDNS, error) {
 		Id:       ProtocolWIFIDNS,
 		RW:       false,
 		IsQueued: false,
-		Params:   []byte{},
 	}
 
 	response, err := dobot.connector.SendMessage(ctx, message)
@@ -6085,8 +5993,7 @@ func (dobot *Dobot) GetWIFIDNS(ctx context.Context) (*WIFIDNS, error) {
 	}
 
 	result := &WIFIDNS{}
-	reader := response.Reader()
-	if err := binary.Read(reader, binary.LittleEndian, result); err != nil {
+	if err := response.Read(result); err != nil {
 		return nil, fmt.Errorf("failed to read WIFI DNS: %v", err)
 	}
 	return result, nil
@@ -6101,19 +6008,13 @@ func (dobot *Dobot) GetWIFIConnectStatus(ctx context.Context) (bool, error) {
 		Id:       ProtocolWIFIConnectStatus,
 		RW:       false,
 		IsQueued: false,
-		Params:   []byte{},
 	}
 
 	response, err := dobot.connector.SendMessage(ctx, message)
 	if err != nil {
 		return false, err
 	}
-	reader := response.Reader()
-	var status bool
-	if err := binary.Read(reader, binary.LittleEndian, &status); err != nil {
-		return false, fmt.Errorf("failed to read WIFI connect status: %v", err)
-	}
-	return status, nil
+	return response.Bool(), nil
 }
 
 // GetIOMultiplexing 获取IO复用状态
@@ -6166,14 +6067,12 @@ func (dobot *Dobot) GetIOMultiplexing(ioMultiplexing *IOMultiplexing) (*IOMultip
 	writer := &bytes.Buffer{}
 	binary.Write(writer, binary.LittleEndian, ioMultiplexing)
 	message.Params = writer.Bytes()
-
 	resp, err := dobot.connector.SendMessage(context.Background(), message)
 	if err != nil {
 		return nil, err
 	}
-	reader := resp.Reader()
 	var multiplexing IOMultiplexing
-	if err := binary.Read(reader, binary.LittleEndian, &multiplexing); err != nil {
+	if err := resp.Read(&multiplexing); err != nil {
 		return nil, fmt.Errorf("failed to read IOMultiplexing: %v", err)
 	}
 	return &multiplexing, nil

@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ type Message struct {
 	RW       bool       // 原 rw
 	IsQueued bool       // 原 isQueued
 	Params   []byte
+	AckLen   uint8
 }
 
 func (message *Message) Ctrl() uint8 {
@@ -54,15 +56,39 @@ func (message *Message) SetCtrl(ctrl uint8) {
 }
 
 func (message *Message) Data() []byte {
-	buf := make([]byte, MaxPayloadSize-2)
-	copy(buf, message.Params)
-	return buf
+	return message.Params[:message.AckLen]
 }
 
 func (message *Message) Reader() io.Reader {
-	buf := make([]byte, MaxPayloadSize-2)
-	copy(buf, message.Params)
-	return bytes.NewReader(buf)
+	return bytes.NewReader(message.Params)
+}
+
+func (message *Message) Read(data any) error {
+	return binary.Read(message.Reader(), binary.LittleEndian, data)
+}
+
+func (message *Message) Bool() bool {
+	return message.Params[0] != 0
+}
+
+func (message *Message) Uint16() uint16 {
+	return binary.LittleEndian.Uint16(message.Params)
+}
+
+func (message *Message) Uint32() uint32 {
+	return binary.LittleEndian.Uint32(message.Params)
+}
+
+func (message *Message) Uint64() uint64 {
+	return binary.LittleEndian.Uint64(message.Params)
+}
+
+func (message *Message) Float32() float32 {
+	return math.Float32frombits(binary.LittleEndian.Uint32(message.Params))
+}
+
+func (message *Message) Float64() float64 {
+	return math.Float64frombits(binary.LittleEndian.Uint64(message.Params))
 }
 
 type outMessage struct {
@@ -208,8 +234,9 @@ func (connector *Connector) receiveGoRoutine(ctx context.Context) {
 		message := &Message{}
 		message.Id = ProtocolId(idbyte)
 		message.SetCtrl(ctrlbyte)
-		message.Params = make([]byte, sbyte-2)
-		reader.Read(message.Params)
+		message.Params = make([]byte, MaxPayloadSize-2)
+		message.AckLen = sbyte - 2
+		reader.Read(message.Params[:message.AckLen])
 		reader.ReadByte()
 		connector.messageAck <- message
 	}
@@ -269,9 +296,7 @@ func (connector *Connector) processGoRoutine(ctx context.Context) {
 					breakfor = true
 					message.Error(err)
 				} else if ack != nil {
-					numbuf := make([]byte, 4)
-					copy(numbuf, ack.Params)
-					connector.leftSpace = binary.LittleEndian.Uint32(numbuf)
+					connector.leftSpace = binary.LittleEndian.Uint32(ack.Params)
 					if connector.leftSpace == 0 {
 						message.Error(errors.New("left space is 0"))
 					} else if ack, err = connector.sendMessage(ctx, message.Message); err != nil {

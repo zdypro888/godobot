@@ -22,7 +22,7 @@ func main() {
 	}
 	fmt.Println("leftSpace:", leftSpace)
 	dobot.SetQueuedCmdClear()
-	dobot.SetHOMEParams(&godobot.HOMEParams{X: 200, Y: 200, Z: 200, R: 200}, false)
+	dobot.SetHOMEParams(&godobot.HOMEParams{X: 100, Y: 200, Z: 200, R: 200}, false)
 	dobot.SetQueuedCmdStartExec()
 
 	dobot.SetQueuedCmdStopExec()
