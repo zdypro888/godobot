@@ -5,207 +5,202 @@ type ProtocolId uint8
 
 const (
 	// Device information
-	ProtocolFunctionDeviceInfoBase ProtocolId = iota
-	ProtocolDeviceSN                          // Base + 0
-	ProtocolDeviceName                        // Base + 1
-	ProtocolDeviceVersion                     // Base + 2
-	ProtocolDeviceWithL                       // Base + 3
-	ProtocolDeviceTime                        // Base + 4
-	_                                         // Base + 5 (跳过)
-	ProtocolDeviceInfo                        // Base + 6
+	ProtocolFunctionDeviceInfoBase ProtocolId = 0
+	ProtocolDeviceSN               ProtocolId = ProtocolFunctionDeviceInfoBase + 0 // Base + 0
+	ProtocolDeviceName             ProtocolId = ProtocolFunctionDeviceInfoBase + 1 // Base + 1
+	ProtocolDeviceVersion          ProtocolId = ProtocolFunctionDeviceInfoBase + 2 // Base + 2
+	ProtocolDeviceWithL            ProtocolId = ProtocolFunctionDeviceInfoBase + 3 // Base + 3
+	ProtocolDeviceTime             ProtocolId = ProtocolFunctionDeviceInfoBase + 4 // Base + 4
+	_                                                                              // Base + 5 (跳过)
+	ProtocolDeviceInfo             ProtocolId = ProtocolFunctionDeviceInfoBase + 6 // Base + 6
 )
 
 const (
 	// Pose
-	ProtocolFunctionPoseBase ProtocolId = 10 + iota
-	ProtocolGetPose                     // Base + 0
-	ProtocolResetPose                   // Base + 1
-	ProtocolGetKinematics               // Base + 2
-	ProtocolGetPoseL                    // Base + 3
+	ProtocolFunctionPoseBase ProtocolId = 10
+	ProtocolGetPose          ProtocolId = ProtocolFunctionPoseBase + 0 // Base + 0
+	ProtocolResetPose        ProtocolId = ProtocolFunctionPoseBase + 1 // Base + 1
+	ProtocolGetKinematics    ProtocolId = ProtocolFunctionPoseBase + 2 // Base + 2
+	ProtocolGetPoseL         ProtocolId = ProtocolFunctionPoseBase + 3 // Base + 3
 )
 
 const (
 	// Alarm
-	ProtocolFunctionALARMBase ProtocolId = 20 + iota
-	ProtocolAlarmsState                  // Base + 0
+	ProtocolFunctionALARMBase ProtocolId = 20
+	ProtocolAlarmsState       ProtocolId = ProtocolFunctionALARMBase + 0 // Base + 0
 )
 
 const (
 	// HOME
-	ProtocolFunctionHOMEBase ProtocolId = 30 + iota
-	ProtocolHOMEParams                  // Base + 0
-	ProtocolHOMECmd                     // Base + 1
-	ProtocolAutoLeveling                // Base + 2
+	ProtocolFunctionHOMEBase ProtocolId = 30
+	ProtocolHOMEParams       ProtocolId = ProtocolFunctionHOMEBase + 0 // Base + 0
+	ProtocolHOMECmd          ProtocolId = ProtocolFunctionHOMEBase + 1 // Base + 1
+	ProtocolAutoLeveling     ProtocolId = ProtocolFunctionHOMEBase + 2 // Base + 2
 )
 
 const (
 	// HHT
-	ProtocolFunctionHHTBase      ProtocolId = 40 + iota
-	ProtocolHHTTrigMode                     // Base + 0
-	ProtocolHHTTrigOutputEnabled            // Base + 1
-	ProtocolHHTTrigOutput                   // Base + 2
+	ProtocolFunctionHHTBase      ProtocolId = 40
+	ProtocolHHTTrigMode          ProtocolId = ProtocolFunctionHHTBase + 0 // Base + 0
+	ProtocolHHTTrigOutputEnabled ProtocolId = ProtocolFunctionHHTBase + 1 // Base + 1
+	ProtocolHHTTrigOutput        ProtocolId = ProtocolFunctionHHTBase + 2 // Base + 2
 )
 
 const (
 	// Arm Orientation
-	ProtocolFunctionArmOrientationBase ProtocolId = 50 + iota
-	ProtocolArmOrientation                        // Base + 0
+	ProtocolFunctionArmOrientationBase ProtocolId = 50
+	ProtocolArmOrientation             ProtocolId = ProtocolFunctionArmOrientationBase + 0 // Base + 0
 )
 
 const (
 	// End effector
-	ProtocolFunctionEndEffectorBase ProtocolId = 60 + iota
-	ProtocolEndEffectorParams                  // Base + 0
-	ProtocolEndEffectorLaser                   // Base + 1
-	ProtocolEndEffectorSuctionCup              // Base + 2
-	ProtocolEndEffectorGripper                 // Base + 3
+	ProtocolFunctionEndEffectorBase ProtocolId = 60
+	ProtocolEndEffectorParams       ProtocolId = ProtocolFunctionEndEffectorBase + 0 // Base + 0
+	ProtocolEndEffectorLaser        ProtocolId = ProtocolFunctionEndEffectorBase + 1 // Base + 1
+	ProtocolEndEffectorSuctionCup   ProtocolId = ProtocolFunctionEndEffectorBase + 2 // Base + 2
+	ProtocolEndEffectorGripper      ProtocolId = ProtocolFunctionEndEffectorBase + 3 // Base + 3
 )
 
 const (
 	// JOG
-	ProtocolFunctionJOGBase     ProtocolId = 70 + iota
-	ProtocolJOGJointParams                 // Base + 0
-	ProtocolJOGCoordinateParams            // Base + 1
-	ProtocolJOGCommonParams                // Base + 2
-	ProtocolJOGCmd                         // Base + 3
-	ProtocolJOGLParams                     // Base + 4
+	ProtocolFunctionJOGBase     ProtocolId = 70
+	ProtocolJOGJointParams      ProtocolId = ProtocolFunctionJOGBase + 0 // Base + 0
+	ProtocolJOGCoordinateParams ProtocolId = ProtocolFunctionJOGBase + 1 // Base + 1
+	ProtocolJOGCommonParams     ProtocolId = ProtocolFunctionJOGBase + 2 // Base + 2
+	ProtocolJOGCmd              ProtocolId = ProtocolFunctionJOGBase + 3 // Base + 3
+	ProtocolJOGLParams          ProtocolId = ProtocolFunctionJOGBase + 4 // Base + 4
 )
 
 const (
 	// PTP
-	ProtocolFunctionPTPBase     ProtocolId = 80 + iota
-	ProtocolPTPJointParams                 // Base + 0
-	ProtocolPTPCoordinateParams            // Base + 1
-	ProtocolPTPJumpParams                  // Base + 2
-	ProtocolPTPCommonParams                // Base + 3
-	ProtocolPTPCmd                         // Base + 4
-	ProtocolPTPLParams                     // Base + 5
-	ProtocolPTPWithLCmd                    // Base + 6
-	ProtocolPTPJump2Params                 // Base + 7
-	ProtocolPTPPOCmd                       // Base + 8
-	ProtocolPTPPOWithLCmd                  // Base + 9
+	ProtocolFunctionPTPBase     ProtocolId = 80
+	ProtocolPTPJointParams      ProtocolId = ProtocolFunctionPTPBase + 0 // Base + 0
+	ProtocolPTPCoordinateParams ProtocolId = ProtocolFunctionPTPBase + 1 // Base + 1
+	ProtocolPTPJumpParams       ProtocolId = ProtocolFunctionPTPBase + 2 // Base + 2
+	ProtocolPTPCommonParams     ProtocolId = ProtocolFunctionPTPBase + 3 // Base + 3
+	ProtocolPTPCmd              ProtocolId = ProtocolFunctionPTPBase + 4 // Base + 4
+	ProtocolPTPLParams          ProtocolId = ProtocolFunctionPTPBase + 5 // Base + 5
+	ProtocolPTPWithLCmd         ProtocolId = ProtocolFunctionPTPBase + 6 // Base + 6
+	ProtocolPTPJump2Params      ProtocolId = ProtocolFunctionPTPBase + 7 // Base + 7
+	ProtocolPTPPOCmd            ProtocolId = ProtocolFunctionPTPBase + 8 // Base + 8
+	ProtocolPTPPOWithLCmd       ProtocolId = ProtocolFunctionPTPBase + 9 // Base + 9
 )
 
 const (
 	// CP
-	ProtocolFunctionCPBase ProtocolId = 90 + iota
-	ProtocolCPParams                  // Base + 0
-	ProtocolCPCmd                     // Base + 1
-	ProtocolCPLECmd                   // Base + 2
-	ProtocolCPRHoldEnable             // Base + 3
-	ProtocolCPCommonParams            // Base + 4
+	ProtocolFunctionCPBase ProtocolId = 90
+	ProtocolCPParams       ProtocolId = ProtocolFunctionCPBase + 0 // Base + 0
+	ProtocolCPCmd          ProtocolId = ProtocolFunctionCPBase + 1 // Base + 1
+	ProtocolCPLECmd        ProtocolId = ProtocolFunctionCPBase + 2 // Base + 2
+	ProtocolCPRHoldEnable  ProtocolId = ProtocolFunctionCPBase + 3 // Base + 3
+	ProtocolCPCommonParams ProtocolId = ProtocolFunctionCPBase + 4 // Base + 4
 )
 
 const (
 	// ARC
-	ProtocolFunctionARCBase ProtocolId = 100 + iota
-	ProtocolARCParams                  // Base + 0
-	ProtocolARCCmd                     // Base + 1
-	ProtocolCircleCmd                  // Base + 2
-	ProtocolARCCommonParams            // Base + 3
+	ProtocolFunctionARCBase ProtocolId = 100
+	ProtocolARCParams       ProtocolId = ProtocolFunctionARCBase + 0 // Base + 0
+	ProtocolARCCmd          ProtocolId = ProtocolFunctionARCBase + 1 // Base + 1
+	ProtocolCircleCmd       ProtocolId = ProtocolFunctionARCBase + 2 // Base + 2
+	ProtocolARCCommonParams ProtocolId = ProtocolFunctionARCBase + 3 // Base + 3
 )
 
 const (
 	// WAIT
-	ProtocolFunctionWAITBase ProtocolId = 110 + iota
-	ProtocolWAITCmd                     // Base + 0
+	ProtocolFunctionWAITBase ProtocolId = 110
+	ProtocolWAITCmd          ProtocolId = ProtocolFunctionWAITBase + 0 // Base + 0
 )
 
 const (
 	// TRIG
-	ProtocolFunctionTRIGBase ProtocolId = 120 + iota
-	ProtocolTRIGCmd                     // Base + 0
+	ProtocolFunctionTRIGBase ProtocolId = 120
+	ProtocolTRIGCmd          ProtocolId = ProtocolFunctionTRIGBase + 0 // Base + 0
 )
 
 const (
 	// EIO
-	ProtocolFunctionEIOBase ProtocolId = 130 + iota
-	ProtocolIOMultiplexing             // Base + 0
-	ProtocolIODO                       // Base + 1
-	ProtocolIOPWM                      // Base + 2
-	ProtocolIODI                       // Base + 3
-	ProtocolIOADC                      // Base + 4
-	ProtocolEMotor                     // Base + 5
-	ProtocolEMotorS                    // Base + 6
-	ProtocolColorSensor                // Base + 7
-	ProtocolIRSwitch                   // Base + 8
+	ProtocolFunctionEIOBase ProtocolId = 130
+	ProtocolIOMultiplexing  ProtocolId = ProtocolFunctionEIOBase + 0 // Base + 0
+	ProtocolIODO            ProtocolId = ProtocolFunctionEIOBase + 1 // Base + 1
+	ProtocolIOPWM           ProtocolId = ProtocolFunctionEIOBase + 2 // Base + 2
+	ProtocolIODI            ProtocolId = ProtocolFunctionEIOBase + 3 // Base + 3
+	ProtocolIOADC           ProtocolId = ProtocolFunctionEIOBase + 4 // Base + 4
+	ProtocolEMotor          ProtocolId = ProtocolFunctionEIOBase + 5 // Base + 5
+	ProtocolEMotorS         ProtocolId = ProtocolFunctionEIOBase + 6 // Base + 6
+	ProtocolColorSensor     ProtocolId = ProtocolFunctionEIOBase + 7 // Base + 7
+	ProtocolIRSwitch        ProtocolId = ProtocolFunctionEIOBase + 8 // Base + 8
 )
 
 const (
 	// CAL
-	ProtocolFunctionCALBase        ProtocolId = 140 + iota
-	ProtocolAngleSensorStaticError            // Base + 0
-	ProtocolAngleSensorCoef                   // Base + 1
-	ProtocolBaseDecoderStaticError            // Base + 2
-	ProtocolLRHandCalibrateValue              // Base + 3
+	ProtocolFunctionCALBase        ProtocolId = 140
+	ProtocolAngleSensorStaticError ProtocolId = ProtocolFunctionCALBase + 0 // Base + 0
+	ProtocolAngleSensorCoef        ProtocolId = ProtocolFunctionCALBase + 1 // Base + 1
+	ProtocolBaseDecoderStaticError ProtocolId = ProtocolFunctionCALBase + 2 // Base + 2
+	ProtocolLRHandCalibrateValue   ProtocolId = ProtocolFunctionCALBase + 3 // Base + 3
 )
 
 const (
 	// WIFI
-	ProtocolFunctionWIFIBase  ProtocolId = 150 + iota
-	ProtocolWIFIConfigMode               // Base + 0
-	ProtocolWIFISSID                     // Base + 1
-	ProtocolWIFIPassword                 // Base + 2
-	ProtocolWIFIIPAddress                // Base + 3
-	ProtocolWIFINetmask                  // Base + 4
-	ProtocolWIFIGateway                  // Base + 5
-	ProtocolWIFIDNS                      // Base + 6
-	ProtocolWIFIConnectStatus            // Base + 7
+	ProtocolFunctionWIFIBase  ProtocolId = 150
+	ProtocolWIFIConfigMode    ProtocolId = ProtocolFunctionWIFIBase + 0 // Base + 0
+	ProtocolWIFISSID          ProtocolId = ProtocolFunctionWIFIBase + 1 // Base + 1
+	ProtocolWIFIPassword      ProtocolId = ProtocolFunctionWIFIBase + 2 // Base + 2
+	ProtocolWIFIIPAddress     ProtocolId = ProtocolFunctionWIFIBase + 3 // Base + 3
+	ProtocolWIFINetmask       ProtocolId = ProtocolFunctionWIFIBase + 4 // Base + 4
+	ProtocolWIFIGateway       ProtocolId = ProtocolFunctionWIFIBase + 5 // Base + 5
+	ProtocolWIFIDNS           ProtocolId = ProtocolFunctionWIFIBase + 6 // Base + 6
+	ProtocolWIFIConnectStatus ProtocolId = ProtocolFunctionWIFIBase + 7 // Base + 7
 )
 
 const (
 	// Firmware
-	ProtocolFunctionFirmware ProtocolId = 160 + iota
-	ProtocolFirmwareSwitch              // Base + 0
-	ProtocolFirmwareMode                // Base + 1
+	ProtocolFunctionFirmware ProtocolId = 160
+	ProtocolFirmwareSwitch   ProtocolId = ProtocolFunctionFirmware + 0 // Base + 0
+	ProtocolFirmwareMode     ProtocolId = ProtocolFunctionFirmware + 1 // Base + 1
 )
 
 const (
 	// LostStep
-	ProtocolFunctionLostStepBase ProtocolId = 170 + iota
-	ProtocolLostStepSet                     // Base + 0
-	ProtocolLostStepDetect                  // Base + 1
+	ProtocolFunctionLostStepBase ProtocolId = 170
+	ProtocolLostStepSet          ProtocolId = ProtocolFunctionLostStepBase + 0 // Base + 0
+	ProtocolLostStepDetect       ProtocolId = ProtocolFunctionLostStepBase + 1 // Base + 1
 )
 
 const (
 	// UART4 Peripherals
-	ProtocolFunctionCheckModelBase     ProtocolId = 180 + iota
-	ProtocolCheckUART4PeripheralsModel            // Base + 1
-	ProtocolUART4PeripheralsEnabled               // Base + 2
+	ProtocolFunctionCheckModelBase     ProtocolId = 180
+	ProtocolCheckUART4PeripheralsModel ProtocolId = ProtocolFunctionCheckModelBase + 0 // Base + 0
+	ProtocolUART4PeripheralsEnabled    ProtocolId = ProtocolFunctionCheckModelBase + 1 // Base + 1
 )
 
 const (
 	// Pulse Mode
-	ProtocolFunctionPulseModeBase ProtocolId = 190 + iota
-	ProtocolFunctionPulseMode                // Base + 1
+	ProtocolFunctionPulseModeBase ProtocolId = 190
+	ProtocolFunctionPulseMode     ProtocolId = ProtocolFunctionPulseModeBase + 0 // Base + 0
 )
 
 const (
 	// TEST
-	ProtocolTESTBase   ProtocolId = 220 + iota
-	ProtocolUserParams            // Base + 0
-	ProtocolPTPTime               // Base + 1
+	ProtocolTESTBase   ProtocolId = 220
+	ProtocolUserParams ProtocolId = ProtocolTESTBase + 0 // Base + 0
+	ProtocolPTPTime    ProtocolId = ProtocolTESTBase + 1 // Base + 1
 )
 
 const (
 	// QueuedCmd
-	ProtocolFunctionQueuedCmdBase  ProtocolId = 240 + iota
-	ProtocolQueuedCmdStartExec                // Base + 0
-	ProtocolQueuedCmdStopExec                 // Base + 1
-	ProtocolQueuedCmdForceStopExec            // Base + 2
-	ProtocolQueuedCmdStartDownload            // Base + 3
-	ProtocolQueuedCmdStopDownload             // Base + 4
-	ProtocolQueuedCmdClear                    // Base + 5
-	ProtocolQueuedCmdCurrentIndex             // Base + 6
-	ProtocolQueuedCmdLeftSpace                // Base + 7
-	ProtocolQueuedCmdMotionFinish             // Base + 8
+	ProtocolFunctionQueuedCmdBase  ProtocolId = 240
+	ProtocolQueuedCmdStartExec     ProtocolId = ProtocolFunctionQueuedCmdBase + 0 // Base + 0
+	ProtocolQueuedCmdStopExec      ProtocolId = ProtocolFunctionQueuedCmdBase + 1 // Base + 1
+	ProtocolQueuedCmdForceStopExec ProtocolId = ProtocolFunctionQueuedCmdBase + 2 // Base + 2
+	ProtocolQueuedCmdStartDownload ProtocolId = ProtocolFunctionQueuedCmdBase + 3 // Base + 3
+	ProtocolQueuedCmdStopDownload  ProtocolId = ProtocolFunctionQueuedCmdBase + 4 // Base + 4
+	ProtocolQueuedCmdClear         ProtocolId = ProtocolFunctionQueuedCmdBase + 5 // Base + 5
+	ProtocolQueuedCmdCurrentIndex  ProtocolId = ProtocolFunctionQueuedCmdBase + 6 // Base + 6
+	ProtocolQueuedCmdLeftSpace     ProtocolId = ProtocolFunctionQueuedCmdBase + 7 // Base + 7
+	ProtocolQueuedCmdMotionFinish  ProtocolId = ProtocolFunctionQueuedCmdBase + 8 // Base + 8
 )
 
 const (
 // ProtocolMax ProtocolID = 256
-)
-
-// 传感器相关协议ID
-const (
-	ProtocolInfraredSensor ProtocolId = 0x80 // 红外传感器
 )

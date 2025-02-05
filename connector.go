@@ -236,7 +236,9 @@ func (connector *Connector) receiveGoRoutine(ctx context.Context) {
 		message.SetCtrl(ctrlbyte)
 		message.Params = make([]byte, MaxPayloadSize-2)
 		message.AckLen = sbyte - 2
-		reader.Read(message.Params[:message.AckLen])
+		if message.AckLen > 0 {
+			reader.Read(message.Params[:message.AckLen])
+		}
 		reader.ReadByte()
 		connector.messageAck <- message
 	}
@@ -279,34 +281,33 @@ func (connector *Connector) processGoRoutine(ctx context.Context) {
 			breakfor = true
 		case message := <-connector.messageQueue:
 			var ack *Message
-			if !message.IsQueued || connector.leftSpace > 0 {
-				// 非队列消息直接发送
-				if ack, err = connector.sendMessage(ctx, message.Message); err != nil {
-					breakfor = true
-					message.Error(err)
-				} else if ack != nil {
-					message.Reply(ack)
-					connector.leftSpace--
-				} else {
-					message.Error(errors.New("send message timeout max retries"))
-				}
-			} else {
-				cmdGetLeftSpace := &Message{Id: ProtocolQueuedCmdLeftSpace, RW: false, IsQueued: false}
-				if ack, err = connector.sendMessage(ctx, cmdGetLeftSpace); err != nil {
-					breakfor = true
-					message.Error(err)
-				} else if ack != nil {
-					connector.leftSpace = binary.LittleEndian.Uint32(ack.Params)
-					if connector.leftSpace == 0 {
-						message.Error(errors.New("left space is 0"))
-					} else if ack, err = connector.sendMessage(ctx, message.Message); err != nil {
+			for {
+				if !message.IsQueued || connector.leftSpace > 0 {
+					// 非队列消息直接发送
+					if ack, err = connector.sendMessage(ctx, message.Message); err != nil {
 						breakfor = true
 						message.Error(err)
 					} else if ack != nil {
 						message.Reply(ack)
-						connector.leftSpace--
+						if message.IsQueued {
+							connector.leftSpace--
+						}
 					} else {
 						message.Error(errors.New("send message timeout max retries"))
+					}
+					break
+				}
+				cmdGetLeftSpace := &Message{Id: ProtocolQueuedCmdLeftSpace, RW: false, IsQueued: false}
+				if ack, err = connector.sendMessage(ctx, cmdGetLeftSpace); err != nil {
+					breakfor = true
+					message.Error(err)
+					break
+				}
+				if ack != nil {
+					connector.leftSpace = binary.LittleEndian.Uint32(ack.Params)
+					if connector.leftSpace == 0 {
+						message.Error(errors.New("left space is 0"))
+						break
 					}
 				}
 			}
@@ -319,6 +320,10 @@ func (connector *Connector) SendMessage(ctx context.Context, message *Message) (
 	outmsg := &outMessage{Message: message, done: make(chan *MessageAck)}
 	defer outmsg.Close()
 	connector.messageQueue <- outmsg
-	ack := <-outmsg.done
-	return ack.Message, ack.Error
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case ack := <-outmsg.done:
+		return ack.Message, ack.Error
+	}
 }

@@ -15,17 +15,12 @@ func main() {
 	dobot := godobot.NewDobot()
 	if err := dobot.Connect(ctx, "/dev/cu.usbserial-840", 115200); err != nil {
 		fmt.Println(err)
+		return
 	}
-	leftSpace, err := dobot.GetQueuedCmdLeftSpace()
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("leftSpace:", leftSpace)
-	dobot.SetQueuedCmdClear()
-	dobot.SetHOMEParams(&godobot.HOMEParams{X: 100, Y: 200, Z: 200, R: 200}, false)
-	dobot.SetQueuedCmdStartExec()
-
-	dobot.SetQueuedCmdStopExec()
+	dobot.ClearAllAlarmsState(ctx)
+	dobot.SetQueuedCmdClear(ctx)
+	dobot.SetQueuedCmdStartExec(ctx)
+	defer dobot.SetQueuedCmdStopExec(ctx)
 
 	notify := make(chan os.Signal, 1)
 	signal.Notify(notify, os.Interrupt, syscall.SIGTERM)
