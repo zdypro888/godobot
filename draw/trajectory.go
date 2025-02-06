@@ -1,10 +1,14 @@
-package main
+package draw
 
 import (
+	_ "embed"
 	"encoding/json"
 	"net/http"
 	"os"
 )
+
+//go:embed darw.html
+var drawHtml []byte
 
 type Point struct {
 	X    float32 `json:"x"`

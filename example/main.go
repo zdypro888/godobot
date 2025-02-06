@@ -1,18 +1,16 @@
 package main
 
 import (
-	_ "embed"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/zdypro888/godobot/draw"
 )
 
-//go:embed darw.html
-var drawHtml []byte
-
 func main() {
-	robot, err := NewRobot("/dev/cu.usbserial-840", 115200)
+	robot, err := draw.NewRobot("/dev/cu.usbserial-840", 115200)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -25,7 +23,7 @@ func main() {
 	// }
 	robot.DrawInit()
 	// robot.Capture(context.Background(), true)
-	ListTrajectories(":8080", robot)
+	draw.ListTrajectories(":8080", robot)
 
 	notify := make(chan os.Signal, 1)
 	signal.Notify(notify, os.Interrupt, syscall.SIGTERM)
