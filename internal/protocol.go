@@ -1,4 +1,4 @@
-package godobot
+package internal
 
 // ProtocolId 定义了所有协议命令的ID
 type ProtocolId uint8

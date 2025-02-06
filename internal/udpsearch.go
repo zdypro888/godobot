@@ -1,4 +1,4 @@
-package godobot
+package internal
 
 import (
 	"net"

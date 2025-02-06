@@ -228,7 +228,7 @@ const (
 type CPParams struct {
 	PlanAcc       float32
 	JuncitionVel  float32
-	Acc           float32
+	AccOrPeriod   float32
 	RealTimeTrack uint8
 }
 
@@ -242,7 +242,7 @@ const (
 
 // CPCmd CP命令
 type CPCmd struct {
-	CPMode   uint8
+	CPMode   CPMode
 	X        float32
 	Y        float32
 	Z        float32

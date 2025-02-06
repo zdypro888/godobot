@@ -1,26 +1,31 @@
 package main
 
 import (
-	"context"
+	_ "embed"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/zdypro888/godobot"
 )
 
+//go:embed darw.html
+var drawHtml []byte
+
 func main() {
-	ctx := context.Background()
-	dobot := godobot.NewDobot()
-	if err := dobot.Connect(ctx, "/dev/cu.usbserial-840", 115200); err != nil {
+	robot, err := NewRobot("/dev/cu.usbserial-840", 115200)
+	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	dobot.ClearAllAlarmsState(ctx)
-	dobot.SetQueuedCmdClear(ctx)
-	dobot.SetQueuedCmdStartExec(ctx)
-	defer dobot.SetQueuedCmdStopExec(ctx)
+	defer robot.Close()
+	// trajectories, err := LoadTrajectories("trajectories.json")
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	robot.DrawInit()
+	// robot.Capture(context.Background(), true)
+	ListTrajectories(":8080", robot)
 
 	notify := make(chan os.Signal, 1)
 	signal.Notify(notify, os.Interrupt, syscall.SIGTERM)

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <!-- 使页面自适应移动设备 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智能签名系统</title>
+  <style>
+    /* 重置部分样式 */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 800px;
+      padding: 30px;
+      transition: all 0.3s ease;
+    }
+
+    .container:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #2c3e50;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .canvas-container {
+      position: relative;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      background: #fff;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      touch-action: none;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    #clearButton {
+      background: #ff6b6b;
+      color: white;
+    }
+
+    #clearButton:hover {
+      background: #ff5252;
+    }
+
+    #exportButton {
+      background: #4ecdc4;
+      color: white;
+    }
+
+    #exportButton:hover {
+      background: #45b7af;
+    }
+
+    #sendButton {
+      background: #6c5ce7;
+      color: white;
+    }
+
+    #sendButton:hover {
+      background: #5f3dc4;
+    }
+
+    .feedback {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      transform: translateX(150%);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+
+    .feedback.success {
+      background: #00b894;
+      transform: translateX(0);
+    }
+
+    .feedback.error {
+      background: #d63031;
+      transform: translateX(0);
+    }
+
+    .status-indicator {
+      text-align: center;
+      margin-top: 15px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .drawing-tips {
+      text-align: center;
+      margin-top: 10px;
+      color: #666;
+      font-size: 14px;
+      font-style: italic;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2>智能签名系统</h2>
+    <div class="canvas-container">
+      <canvas id="signatureCanvas"></canvas>
+    </div>
+    <div class="drawing-tips">请在上方区域书写签名</div>
+    <div class="buttons">
+      <button id="clearButton">清除</button>
+      <button id="exportButton">导出轨迹</button>
+      <button id="sendButton">发送轨迹</button>
+    </div>
+    <div class="status-indicator" id="statusIndicator"></div>
+  </div>
+  <div class="feedback" id="feedback"></div>
+
+  <script>
+    // 获取 canvas 和上下文
+    const canvas = document.getElementById('signatureCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 根据容器宽度自适应调整 canvas 尺寸（此处采用 16:10 的比例，可根据需要修改）
+    function resizeCanvas() {
+      const containerWidth = canvas.parentElement.clientWidth;
+      canvas.width = containerWidth;
+      canvas.height = containerWidth * 0.625;  // 0.625 即 10/16
+      redraw(); // 尺寸变化后重绘
+    }
+    window.addEventListener('resize', resizeCanvas);
+    document.addEventListener('DOMContentLoaded', resizeCanvas);
+
+    // 使用 requestAnimationFrame 来控制重绘频率
+    let needsRedraw = false;
+    function scheduleRedraw() {
+      if (!needsRedraw) {
+        needsRedraw = true;
+        requestAnimationFrame(() => {
+          redraw();
+          needsRedraw = false;
+        });
+      }
+    }
+
+    // 所有轨迹数据：每个笔画为一个点数组，每个点包含 {x, y, time}
+    let trajectories = [];
+    let currentStroke = [];
+    let drawing = false;
+
+    // 获取 canvas 内的坐标，并添加时间戳（保持轨迹一致性）
+    function getCanvasCoords(evt) {
+      const rect = canvas.getBoundingClientRect();
+      let clientX, clientY;
+      if (evt.touches && evt.touches.length > 0) {
+        clientX = evt.touches[0].clientX;
+        clientY = evt.touches[0].clientY;
+      } else {
+        clientX = evt.clientX;
+        clientY = evt.clientY;
+      }
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+        time: Date.now()
+      };
+    }
+
+    // 重绘整个 canvas（包括所有完成的笔画和当前笔画）
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // 设置绘制样式
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#333';
+
+      // 绘制已完成的笔画
+      trajectories.forEach(stroke => drawStroke(stroke));
+      // 绘制当前正在绘制的笔画
+      if (currentStroke.length > 0) {
+        drawStroke(currentStroke);
+      }
+    }
+
+    // 使用二次贝塞尔曲线平滑绘制一笔
+    function drawStroke(stroke) {
+      if (stroke.length === 0) return;
+      ctx.beginPath();
+      if (stroke.length === 1) {
+        // 只有一个点时，绘制一个小圆点
+        const p = stroke[0];
+        ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fill();
+        return;
+      }
+      ctx.moveTo(stroke[0].x, stroke[0].y);
+      for (let i = 1; i < stroke.length - 1; i++) {
+        const midPoint = {
+          x: (stroke[i].x + stroke[i + 1].x) / 2,
+          y: (stroke[i].y + stroke[i + 1].y) / 2
+        };
+        ctx.quadraticCurveTo(stroke[i].x, stroke[i].y, midPoint.x, midPoint.y);
+      }
+      // 连接最后一个点
+      ctx.lineTo(stroke[stroke.length - 1].x, stroke[stroke.length - 1].y);
+      ctx.stroke();
+    }
+
+    // 开始签名（触发后初始化当前笔画）
+    function startDrawing(evt) {
+      evt.preventDefault();
+      drawing = true;
+      currentStroke = [];
+      const pos = getCanvasCoords(evt);
+      currentStroke.push(pos);
+      scheduleRedraw();
+    }
+
+    // 签名过程中，记录每个点（包含详细的时间戳）
+    function draw(evt) {
+      if (!drawing) return;
+      evt.preventDefault();
+      const pos = getCanvasCoords(evt);
+      currentStroke.push(pos);
+      scheduleRedraw();
+    }
+
+    // 结束签名，将当前笔画保存到总轨迹数据中
+    function endDrawing(evt) {
+      if (!drawing) return;
+      evt.preventDefault();
+      drawing = false;
+      trajectories.push(currentStroke);
+      currentStroke = [];
+      scheduleRedraw();
+    }
+
+    // 绑定触控事件
+    canvas.addEventListener('touchstart', startDrawing, false);
+    canvas.addEventListener('touchmove', draw, false);
+    canvas.addEventListener('touchend', endDrawing, false);
+    canvas.addEventListener('touchcancel', endDrawing, false);
+
+    // 绑定鼠标事件
+    canvas.addEventListener('mousedown', startDrawing, false);
+    canvas.addEventListener('mousemove', draw, false);
+    canvas.addEventListener('mouseup', endDrawing, false);
+    canvas.addEventListener('mouseleave', endDrawing, false);
+
+    // 显示反馈信息的函数
+    function showFeedback(message, type) {
+      const feedback = document.getElementById('feedback');
+      const statusIndicator = document.getElementById('statusIndicator');
+      
+      feedback.textContent = message;
+      feedback.className = `feedback ${type}`;
+      statusIndicator.textContent = message;
+      
+      // 3秒后隐藏反馈
+      setTimeout(() => {
+        feedback.className = 'feedback';
+        if (type === 'error') {
+          statusIndicator.textContent = '';
+        }
+      }, 3000);
+    }
+
+    // 更新发送轨迹按钮的处理函数
+    document.getElementById('sendButton').addEventListener('click', async () => {
+      if (trajectories.length === 0) {
+        showFeedback('请先进行签名', 'error');
+        return;
+      }
+
+      const data = {
+        trajectories: trajectories,
+        exportedAt: new Date().toISOString()
+      };
+
+      try {
+        const resp = await fetch('/trajectories', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (resp.ok) {
+          showFeedback('轨迹发送成功！', 'success');
+        } else {
+          showFeedback('轨迹发送失败，请重试', 'error');
+        }
+      } catch (error) {
+        showFeedback('网络错误，请检查连接', 'error');
+      }
+    });
+
+    // 更新清除按钮的处理函数
+    document.getElementById('clearButton').addEventListener('click', () => {
+      trajectories = [];
+      currentStroke = [];
+      redraw();
+      document.getElementById('statusIndicator').textContent = '画板已清空';
+    });
+
+    // 更新导出轨迹按钮的处理函数
+    document.getElementById('exportButton').addEventListener('click', () => {
+      if (trajectories.length === 0) {
+        showFeedback('请先进行签名', 'error');
+        return;
+      }
+
+      const data = {
+        trajectories: trajectories,
+        exportedAt: new Date().toISOString()
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", "signature_trajectories.json");
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+      
+      showFeedback('轨迹已成功导出', 'success');
+    });
+  </script>
+</body>
+
+</html>
