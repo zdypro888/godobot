@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-//go:embed darw.html
+//go:embed index.html
 var drawHtml []byte
 
 type Point struct {
