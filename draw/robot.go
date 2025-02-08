@@ -154,8 +154,10 @@ func curvatureAt(points []*Point, i int) float64 {
 
 func (robot *Robot) Draw(trajectories *Signature, z float32, scale float64, bspline bool) error {
 	for _, stroke := range trajectories.Strokes {
+		// 创建 B-Spline（3 阶）
+		degree := 3
 		var smoothPoints []*Point
-		if len(stroke.Points) < 3 || !bspline {
+		if len(stroke.Points) > degree || !bspline {
 			for _, point := range stroke.Points {
 				smoothPoints = append(smoothPoints, &Point{X: point.X / float32(scale), Y: point.Y / float32(scale)})
 			}
@@ -166,8 +168,7 @@ func (robot *Robot) Draw(trajectories *Signature, z float32, scale float64, bspl
 				xKnots = append(xKnots, float64(point.X)/scale)
 				yKnots = append(yKnots, float64(point.Y)/scale)
 			}
-			// 创建 B-Spline（3 阶）
-			degree := 3
+			// 创建 B-Spline（degree 阶）
 			bSplineX := bsplines.NewRegular(degree, len(xKnots)).WithControlPoints(xKnots)
 			bSplineY := bsplines.NewRegular(degree, len(yKnots)).WithControlPoints(yKnots)
 			// 生成平滑曲线上的点（采样 50 个点）
