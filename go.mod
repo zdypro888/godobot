@@ -12,5 +12,5 @@ require (
 	github.com/creack/goselect v0.1.2 // indirect
 	github.com/gomlx/exceptions v0.0.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 )
