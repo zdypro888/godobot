@@ -128,7 +128,7 @@ func (robot *Robot) DrawInit() error {
 }
 
 // 计算曲率
-func curvatureAt(points []Point, i int) float64 {
+func curvatureAt(points []*Point, i int) float64 {
 	if i <= 0 || i >= len(points)-1 {
 		return 0 // 边界点不计算
 	}
@@ -152,17 +152,17 @@ func curvatureAt(points []Point, i int) float64 {
 	return curvature
 }
 
-func (robot *Robot) Draw(trajectories *Trajectories, z float32, scale float64, bspline bool) error {
+func (robot *Robot) Draw(trajectories *Signature, z float32, scale float64, bspline bool) error {
 	for _, stroke := range trajectories.Strokes {
-		var smoothPoints []Point
-		if len(stroke) < 3 || !bspline {
-			for _, point := range stroke {
-				smoothPoints = append(smoothPoints, Point{X: point.X / float32(scale), Y: point.Y / float32(scale)})
+		var smoothPoints []*Point
+		if len(stroke.Points) < 3 || !bspline {
+			for _, point := range stroke.Points {
+				smoothPoints = append(smoothPoints, &Point{X: point.X / float32(scale), Y: point.Y / float32(scale)})
 			}
 		} else {
 			// 提取 X 和 Y 坐标
 			var xKnots, yKnots []float64
-			for _, point := range stroke {
+			for _, point := range stroke.Points {
 				xKnots = append(xKnots, float64(point.X)/scale)
 				yKnots = append(yKnots, float64(point.Y)/scale)
 			}
@@ -172,7 +172,7 @@ func (robot *Robot) Draw(trajectories *Trajectories, z float32, scale float64, b
 			bSplineY := bsplines.NewRegular(degree, len(yKnots)).WithControlPoints(yKnots)
 			// 生成平滑曲线上的点（采样 50 个点）
 			numSamples := len(xKnots) * 5
-			smoothPoints = make([]Point, numSamples)
+			smoothPoints = make([]*Point, numSamples)
 			// 应用 Kalman 过滤器（减少误差）
 			alpha := float32(0.9)
 			var lastX, lastY float32
@@ -184,7 +184,7 @@ func (robot *Robot) Draw(trajectories *Trajectories, z float32, scale float64, b
 					x = alpha*x + (1-alpha)*lastX
 					y = alpha*y + (1-alpha)*lastY
 				}
-				smoothPoints[i] = Point{X: x, Y: y}
+				smoothPoints[i] = &Point{X: x, Y: y}
 				lastX, lastY = x, y
 			}
 		}

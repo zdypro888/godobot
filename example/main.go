@@ -23,7 +23,6 @@ func main() {
 	// }
 	robot.DrawInit()
 	// robot.Capture(context.Background(), true)
-	draw.ListTrajectories(":8080", robot)
 
 	notify := make(chan os.Signal, 1)
 	signal.Notify(notify, os.Interrupt, syscall.SIGTERM)

@@ -5,6 +5,7 @@ go 1.23.4
 require (
 	github.com/gomlx/bsplines v0.2.0
 	go.bug.st/serial v1.6.2
+	google.golang.org/protobuf v1.36.5
 )
 
 require (

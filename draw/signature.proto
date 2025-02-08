@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package signature;
+option go_package = "/draw";
+
+message Point {
+  float x = 1;
+  float y = 2;
+  float pressure = 3;  // pressure
+}
+
+message Stroke {
+  repeated Point points = 1;
+}
+
+message Signature {
+  string device_id = 1;  // device_id
+  repeated Stroke strokes = 2;  // strokes
+} 
